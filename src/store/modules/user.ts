@@ -63,6 +63,17 @@ export const useUserStore = defineStore('user', {
       this.userInfo = null
     },
 
+    setSession(token: string, user: UserInfo) {
+      this.token = token
+      this.userInfo = { ...user }
+      const idx = this.users.findIndex((u) => u.id === user.id)
+      if (idx === -1) {
+        this.users.push({ ...user })
+      } else {
+        this.users[idx] = { ...user }
+      }
+    },
+
     updateUser(id: string, payload: Partial<UserInfo>) {
       const idx = this.users.findIndex((u) => u.id === id)
       if (idx === -1) return

@@ -7,9 +7,9 @@ export function uid(prefix = 'id'): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
-export function formatDate(value: string): string {
+export function formatDate(value: string | number | Date): string {
   const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return value
+  if (Number.isNaN(d.getTime())) return String(value ?? '')
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')

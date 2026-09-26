@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useUserStore } from '@/store'
+import { apiAdminDeleteUser, apiAdminUpdateUserRole, apiAdminUsers } from '@/api'
 import { formatDate } from '@/utils'
-import type { UserRole } from '@/types'
+import type { UserInfo, UserRole } from '@/types'
 
-const userStore = useUserStore()
-const users = computed(() => userStore.users)
+const users = ref<UserInfo[]>([])
+const loading = ref(false)
 
 const roleMap: Record<UserRole, string> = {
   student: '学员',
@@ -14,22 +14,37 @@ const roleMap: Record<UserRole, string> = {
   admin: '管理员',
 }
 
+async function load() {
+  loading.value = true
+  try {
+    users.value = await apiAdminUsers()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 async function changeRole(id: string, role: UserRole) {
-  userStore.updateUser(id, { role })
+  await apiAdminUpdateUserRole(id, role)
   ElMessage.success('角色已更新')
+  await load()
 }
 
 async function remove(id: string) {
   await ElMessageBox.confirm('确认删除该用户？', '提示', { type: 'warning' })
-  userStore.removeUser(id)
+  await apiAdminDeleteUser(id)
   ElMessage.success('已删除')
+  await load()
 }
+
+onMounted(load)
 </script>
 
 <template>
   <div>
     <h1 class="title">用户管理</h1>
-    <el-table :data="users" stripe border style="width: 100%">
+    <el-table v-loading="loading" :data="users" stripe border style="width: 100%">
       <el-table-column prop="name" label="姓名" min-width="120" />
       <el-table-column prop="phone" label="手机号" min-width="120" />
       <el-table-column label="角色" min-width="140">

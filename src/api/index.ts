@@ -1,93 +1,189 @@
 /**
- * API 层：当前走 Pinia mock，后续可替换为 uni.request / HTTP
+ * API 层：对接 tonghao-server（Vite 代理 /api -> localhost:8080）
+ * 新增接口按下方写法：return axios({ url, method, data/params })
  */
-import { delay } from '@/utils'
-import { useTeacherStore, useDemandStore, useCommentStore, useUserStore } from '@/store'
+import axios from './request'
+import { useUserStore } from '@/store'
 import type {
   AuditStatus,
+  Comment,
   ConsultForm,
   Demand,
   Teacher,
   TeacherFilter,
+  UserInfo,
   UserRole,
 } from '@/types'
 
 export async function apiLogin(phone: string, code: string, role: UserRole = 'student') {
-  await delay()
-  return useUserStore().loginByPhone(phone, code, role)
+  const data = await axios<{ token: string; user: UserInfo }>({
+    url: '/api/auth/login',
+    method: 'POST',
+    data: { phone, code, role },
+  })
+  useUserStore().setSession(data.token, data.user)
+  return data.user
 }
 
-export async function apiSendCode(phone: string) {
-  await delay()
-  return useUserStore().sendCode(phone)
+export function apiSendCode(phone: string) {
+  return axios<{ code: string; message: string }>({
+    url: '/api/auth/send-code',
+    method: 'POST',
+    data: { phone },
+  })
 }
 
-export async function apiGetTeachers(filter: TeacherFilter = {}) {
-  await delay()
-  return useTeacherStore().search(filter, true)
+export function apiGetTeachers(filter: TeacherFilter = {}) {
+  return axios<Teacher[]>({
+    url: '/api/teachers',
+    method: 'GET',
+    params: filter,
+  })
 }
 
-export async function apiGetHotTeachers() {
-  await delay()
-  const store = useTeacherStore()
-  const hot = store.hotList
-  return hot.length ? hot : store.approvedList.slice(0, 4)
+export function apiGetHotTeachers() {
+  return axios<Teacher[]>({
+    url: '/api/teachers/hot',
+    method: 'GET',
+  })
 }
 
-export async function apiGetTeacherDetail(id: string) {
-  await delay()
-  const teacher = useTeacherStore().getById(id)
-  if (!teacher || teacher.status !== 'approved') {
-    throw new Error('老师不存在或未通过审核')
-  }
-  return teacher
+export function apiGetTeacherDetail(id: string) {
+  return axios<Teacher>({
+    url: `/api/teachers/${id}`,
+    method: 'GET',
+  })
 }
 
-export async function apiSubmitTeacherJoin(
-  payload: Omit<Teacher, 'id' | 'status' | 'rating' | 'reviewCount' | 'createdAt' | 'isHot'>,
+export function apiSubmitTeacherJoin(
+  data: Omit<Teacher, 'id' | 'status' | 'rating' | 'reviewCount' | 'createdAt' | 'isHot'>,
 ) {
-  await delay(300)
-  return useTeacherStore().submitJoin(payload)
+  return axios<Teacher>({
+    url: '/api/teachers/join',
+    method: 'POST',
+    data,
+  })
 }
 
-export async function apiAuditTeacher(id: string, status: AuditStatus, reason = '') {
-  await delay()
-  useTeacherStore().audit(id, status, reason)
+export function apiAuditTeacher(id: string, status: AuditStatus, reason = '') {
+  return axios<null>({
+    url: `/api/admin/teachers/${id}/audit`,
+    method: 'PUT',
+    data: { status, reason },
+  })
 }
 
-export async function apiGetDemands() {
-  await delay()
-  return useDemandStore().openList
+export function apiGetDemands() {
+  return axios<Demand[]>({
+    url: '/api/demands',
+    method: 'GET',
+  })
 }
 
-export async function apiPublishDemand(
-  payload: Omit<Demand, 'id' | 'status' | 'createdAt'>,
-) {
-  await delay(300)
-  return useDemandStore().publish(payload)
+export function apiPublishDemand(data: Omit<Demand, 'id' | 'status' | 'createdAt'>) {
+  return axios<Demand>({
+    url: '/api/demands',
+    method: 'POST',
+    data,
+  })
 }
 
-export async function apiGetComments(teacherId: string) {
-  await delay()
-  return useCommentStore().listByTeacher(teacherId, true)
+export function apiGetComments(teacherId: string) {
+  return axios<Comment[]>({
+    url: `/api/teachers/${teacherId}/comments`,
+    method: 'GET',
+  })
 }
 
-export async function apiSubmitConsult(form: ConsultForm) {
-  await delay(300)
-  // MVP 仅 mock 成功，不做持久化
-  return { success: true, message: `已向 ${form.teacherName} 发送咨询，请等待老师回电` }
+export function apiSubmitConsult(data: ConsultForm) {
+  return axios<{ success: boolean; message: string }>({
+    url: '/api/consults',
+    method: 'POST',
+    data,
+  })
 }
 
-export async function apiGetDashboard() {
-  await delay()
-  const teachers = useTeacherStore().list
-  const users = useUserStore().users
-  const demands = useDemandStore().list
-  return {
-    teacherCount: teachers.filter((t) => t.status === 'approved').length,
-    studentCount: users.filter((u) => u.role === 'student').length,
-    pendingCount: teachers.filter((t) => t.status === 'pending').length,
-    demandCount: demands.filter((d) => d.status === 'open').length,
-    commentCount: useCommentStore().list.length,
-  }
+export function apiGetDashboard() {
+  return axios<{
+    teacherCount: number
+    studentCount: number
+    pendingCount: number
+    demandCount: number
+    commentCount: number
+  }>({
+    url: '/api/admin/dashboard',
+    method: 'GET',
+  })
+}
+
+export function apiAdminTeachers() {
+  return axios<Teacher[]>({
+    url: '/api/admin/teachers',
+    method: 'GET',
+  })
+}
+
+export function apiAdminUsers() {
+  return axios<UserInfo[]>({
+    url: '/api/admin/users',
+    method: 'GET',
+  })
+}
+
+export function apiAdminDemands() {
+  return axios<Demand[]>({
+    url: '/api/admin/demands',
+    method: 'GET',
+  })
+}
+
+export function apiAdminComments() {
+  return axios<Comment[]>({
+    url: '/api/admin/comments',
+    method: 'GET',
+  })
+}
+
+export function apiAdminUpdateUserRole(id: string, role: UserRole) {
+  return axios<null>({
+    url: `/api/admin/users/${id}/role`,
+    method: 'PUT',
+    data: { role },
+  })
+}
+
+export function apiAdminDeleteUser(id: string) {
+  return axios<null>({
+    url: `/api/admin/users/${id}`,
+    method: 'DELETE',
+  })
+}
+
+export function apiAdminCloseDemand(id: string) {
+  return axios<null>({
+    url: `/api/admin/demands/${id}/close`,
+    method: 'PUT',
+  })
+}
+
+export function apiAdminDeleteDemand(id: string) {
+  return axios<null>({
+    url: `/api/admin/demands/${id}`,
+    method: 'DELETE',
+  })
+}
+
+export function apiAdminSetCommentVisible(id: string, visible: boolean) {
+  return axios<null>({
+    url: `/api/admin/comments/${id}/visible`,
+    method: 'PUT',
+    params: { visible },
+  })
+}
+
+export function apiAdminDeleteComment(id: string) {
+  return axios<null>({
+    url: `/api/admin/comments/${id}`,
+    method: 'DELETE',
+  })
 }

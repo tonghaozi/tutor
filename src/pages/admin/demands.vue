@@ -1,29 +1,45 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useDemandStore } from '@/store'
+import { apiAdminCloseDemand, apiAdminDeleteDemand, apiAdminDemands } from '@/api'
 import { TEACH_MODE_MAP } from '@/constants'
 import { formatDate, maskPhone } from '@/utils'
+import type { Demand } from '@/types'
 
-const demandStore = useDemandStore()
-const list = computed(() => demandStore.list)
+const list = ref<Demand[]>([])
+const loading = ref(false)
+
+async function load() {
+  loading.value = true
+  try {
+    list.value = await apiAdminDemands()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '加载失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 async function close(id: string) {
-  demandStore.close(id)
+  await apiAdminCloseDemand(id)
   ElMessage.success('已关闭需求')
+  await load()
 }
 
 async function remove(id: string) {
   await ElMessageBox.confirm('确认删除该需求？', '提示', { type: 'warning' })
-  demandStore.remove(id)
+  await apiAdminDeleteDemand(id)
   ElMessage.success('已删除')
+  await load()
 }
+
+onMounted(load)
 </script>
 
 <template>
   <div>
     <h1 class="title">需求管理</h1>
-    <el-table :data="list" stripe border>
+    <el-table v-loading="loading" :data="list" stripe border>
       <el-table-column prop="subject" label="科目" width="90" />
       <el-table-column prop="district" label="区域" width="100" />
       <el-table-column label="预算" width="100">

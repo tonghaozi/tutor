@@ -1,23 +1,33 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { apiAuditTeacher } from '@/api'
-import { useTeacherStore } from '@/store'
+import { apiAuditTeacher, apiAdminTeachers } from '@/api'
 import { AUDIT_STATUS_MAP, TEACH_MODE_MAP } from '@/constants'
 import { formatDate } from '@/utils'
-import type { AuditStatus } from '@/types'
+import type { AuditStatus, Teacher } from '@/types'
 
-const teacherStore = useTeacherStore()
 const statusFilter = ref<AuditStatus | ''>('pending')
+const list = ref<Teacher[]>([])
+const loading = ref(false)
 
-const list = computed(() => {
-  if (!statusFilter.value) return teacherStore.list
-  return teacherStore.list.filter((t) => t.status === statusFilter.value)
-})
+async function load() {
+  loading.value = true
+  try {
+    const all = await apiAdminTeachers()
+    list.value = statusFilter.value
+      ? all.filter((t) => t.status === statusFilter.value)
+      : all
+  } catch (e: any) {
+    ElMessage.error(e?.message || '加载失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 async function approve(id: string) {
   await apiAuditTeacher(id, 'approved')
   ElMessage.success('已通过，老师将对外展示')
+  await load()
 }
 
 async function reject(id: string) {
@@ -28,14 +38,17 @@ async function reject(id: string) {
   })
   await apiAuditTeacher(id, 'rejected', value || '资料不符合要求')
   ElMessage.success('已驳回')
+  await load()
 }
+
+onMounted(load)
 </script>
 
 <template>
   <div>
     <div class="head">
       <h1>老师资质审核</h1>
-      <el-radio-group v-model="statusFilter" size="small">
+      <el-radio-group v-model="statusFilter" size="small" @change="load">
         <el-radio-button value="pending">待审核</el-radio-button>
         <el-radio-button value="approved">已通过</el-radio-button>
         <el-radio-button value="rejected">已驳回</el-radio-button>
@@ -43,7 +56,7 @@ async function reject(id: string) {
       </el-radio-group>
     </div>
 
-    <el-table :data="list" stripe border>
+    <el-table v-loading="loading" :data="list" stripe border>
       <el-table-column prop="name" label="姓名" width="100" />
       <el-table-column prop="phone" label="手机号" width="120" />
       <el-table-column label="科目" min-width="120">
@@ -87,11 +100,11 @@ async function reject(id: string) {
 <style scoped lang="scss">
 .head {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 
   h1 {
     margin: 0;

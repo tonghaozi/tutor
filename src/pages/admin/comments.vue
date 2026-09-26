@@ -1,33 +1,56 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useCommentStore, useTeacherStore } from '@/store'
+import {
+  apiAdminComments,
+  apiAdminDeleteComment,
+  apiAdminSetCommentVisible,
+  apiAdminTeachers,
+} from '@/api'
 import { formatDate } from '@/utils'
+import type { Comment, Teacher } from '@/types'
 
-const commentStore = useCommentStore()
-const teacherStore = useTeacherStore()
-const list = computed(() => commentStore.list)
+const list = ref<Comment[]>([])
+const teachers = ref<Teacher[]>([])
+const loading = ref(false)
 
 function teacherName(id: string) {
-  return teacherStore.getById(id)?.name || id
+  return teachers.value.find((t) => t.id === id)?.name || id
 }
 
-function toggleVisible(id: string, visible: boolean) {
-  commentStore.setVisible(id, visible)
+async function load() {
+  loading.value = true
+  try {
+    const [comments, teacherList] = await Promise.all([apiAdminComments(), apiAdminTeachers()])
+    list.value = comments
+    teachers.value = teacherList
+  } catch (e: any) {
+    ElMessage.error(e?.message || '加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function toggleVisible(id: string, visible: boolean) {
+  await apiAdminSetCommentVisible(id, visible)
   ElMessage.success(visible ? '已显示' : '已隐藏')
+  await load()
 }
 
 async function remove(id: string) {
   await ElMessageBox.confirm('确认删除该评论？', '提示', { type: 'warning' })
-  commentStore.remove(id)
+  await apiAdminDeleteComment(id)
   ElMessage.success('已删除')
+  await load()
 }
+
+onMounted(load)
 </script>
 
 <template>
   <div>
     <h1 class="title">评论管理</h1>
-    <el-table :data="list" stripe border>
+    <el-table v-loading="loading" :data="list" stripe border>
       <el-table-column label="老师" min-width="100">
         <template #default="{ row }">{{ teacherName(row.teacherId) }}</template>
       </el-table-column>
