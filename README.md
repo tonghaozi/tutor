@@ -1,6 +1,6 @@
 # 合肥同城家教平台（MVP）
 
-Vue3 + Vite + Element Plus + SCSS + TypeScript 前端演示项目。定位合肥同城家教信息撮合（主打吉他，可扩展文化课），无支付、无后端数据库，数据使用前端 Mock + localStorage 持久化。
+Vue3 + Vite + Element Plus + SCSS + TypeScript 前端。登录走 CloudBase Auth，业务接口走 HTTP API。
 
 ## 技术栈
 
@@ -76,5 +76,4 @@ src/
 
 ## 说明
 
-本项目为前端 MVP，数据保存在浏览器本地。清除站点数据会恢复为内置 Mock 初始状态（若本地已有持久化缓存，会优先使用缓存）。
-# tutor
+本项目为前端 MVP。开发时 Vite 将 `/api` 代理到 `http://127.0.0.1:9000`，生产环境接口地址由 `VITE_API_BASE_URL` 指定。
