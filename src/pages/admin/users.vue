@@ -1,12 +1,24 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/store'
-import { formatDate } from '@/utils'
+import { errorMessage, formatDate } from '@/utils'
 import type { UserRole } from '@/types'
 
 const userStore = useUserStore()
 const users = computed(() => userStore.users)
+const loading = ref(false)
+
+onMounted(async () => {
+  loading.value = true
+  try {
+    await userStore.fetchUsers()
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '用户列表加载失败'))
+  } finally {
+    loading.value = false
+  }
+})
 
 const roleMap: Record<UserRole, string> = {
   student: '学员',
@@ -15,21 +27,30 @@ const roleMap: Record<UserRole, string> = {
 }
 
 async function changeRole(id: string, role: UserRole) {
-  userStore.updateUser(id, { role })
-  ElMessage.success('角色已更新')
+  try {
+    await userStore.updateUser(id, { role })
+    ElMessage.success('角色已更新')
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '角色更新失败'))
+    await userStore.fetchUsers().catch(() => undefined)
+  }
 }
 
 async function remove(id: string) {
   await ElMessageBox.confirm('确认删除该用户？', '提示', { type: 'warning' })
-  userStore.removeUser(id)
-  ElMessage.success('已删除')
+  try {
+    await userStore.removeUser(id)
+    ElMessage.success('已删除')
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '删除失败'))
+  }
 }
 </script>
 
 <template>
   <div>
     <h1 class="title">用户管理</h1>
-    <el-table :data="users" stripe border style="width: 100%">
+    <el-table v-loading="loading" :data="users" stripe border style="width: 100%">
       <el-table-column prop="name" label="姓名" min-width="120" />
       <el-table-column prop="phone" label="手机号" min-width="120" />
       <el-table-column label="角色" min-width="140">

@@ -3,8 +3,9 @@ import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { apiLogin, apiSendCode } from '@/api'
-import { ADMIN_PHONE, MOCK_SMS_CODE } from '@/constants'
+import { ADMIN_PHONE } from '@/constants'
 import type { UserRole } from '@/types'
+import { errorMessage } from '@/utils'
 
 const router = useRouter()
 const route = useRoute()
@@ -22,9 +23,8 @@ async function sendCode() {
   try {
     const res = await apiSendCode(form.phone)
     ElMessage.success(res.message)
-    form.code = MOCK_SMS_CODE
-  } catch (e: any) {
-    ElMessage.error(e?.message || '发送失败')
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '发送失败'))
   } finally {
     sending.value = false
   }
@@ -37,8 +37,8 @@ async function submit() {
     ElMessage.success(`欢迎，${user.name}`)
     const redirect = (route.query.redirect as string) || (user.role === 'admin' ? '/admin' : '/')
     router.replace(redirect)
-  } catch (e: any) {
-    ElMessage.error(e?.message || '登录失败')
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '登录失败'))
   } finally {
     loading.value = false
   }
@@ -49,7 +49,7 @@ async function submit() {
   <div class="page-container login-page">
     <div class="panel">
       <h1>登录 / 注册</h1>
-      <p class="desc">手机号即账号。未注册会自动创建；演示验证码固定为 {{ MOCK_SMS_CODE }}。</p>
+      <p class="desc">手机号即账号。未注册会自动创建，验证码会发送到手机。</p>
 
       <el-form label-width="80px" @submit.prevent="submit">
         <el-form-item label="身份">
@@ -79,7 +79,7 @@ async function submit() {
         type="info"
         :closable="false"
         show-icon
-        :title="`管理员演示账号：${ADMIN_PHONE}，验证码 ${MOCK_SMS_CODE}`"
+        :title="`管理员手机号：${ADMIN_PHONE}，验证码会发到该手机`"
       />
     </div>
   </div>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { apiGetDashboard } from '@/api'
+import { errorMessage } from '@/utils'
 
 const loading = ref(false)
 const stats = ref({
@@ -15,6 +17,8 @@ onMounted(async () => {
   loading.value = true
   try {
     stats.value = await apiGetDashboard()
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '看板加载失败'))
   } finally {
     loading.value = false
   }

@@ -5,10 +5,12 @@ import 'element-plus/dist/index.css'
 import App from './App.vue'
 import router from './router'
 import pinia from './store'
+import { bindAuthListener } from '@/store'
 import '@/styles/global.scss'
 
 const app = createApp(App)
 app.use(pinia)
+bindAuthListener()
 app.use(router)
 app.use(ElementPlus, { locale: zhCn })
 app.mount('#app')

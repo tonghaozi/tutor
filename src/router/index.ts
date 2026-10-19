@@ -107,8 +107,15 @@ const router = createRouter({
   },
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const userStore = useUserStore()
+  try {
+    await userStore.restoreSession()
+  } catch {
+    if (to.meta.requiresAdmin) {
+      return { name: 'Login', query: { redirect: to.fullPath, role: 'admin' } }
+    }
+  }
   if (to.meta.requiresAdmin && !userStore.isAdmin) {
     return { name: 'Login', query: { redirect: to.fullPath, role: 'admin' } }
   }

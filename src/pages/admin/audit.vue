@@ -1,23 +1,39 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { apiAuditTeacher } from '@/api'
+import { apiAuditTeacher, apiLoadTeachers } from '@/api'
 import { useTeacherStore } from '@/store'
 import { AUDIT_STATUS_MAP, TEACH_MODE_MAP } from '@/constants'
-import { formatDate } from '@/utils'
+import { errorMessage, formatDate } from '@/utils'
 import type { AuditStatus } from '@/types'
 
 const teacherStore = useTeacherStore()
 const statusFilter = ref<AuditStatus | ''>('pending')
+const loading = ref(false)
 
 const list = computed(() => {
   if (!statusFilter.value) return teacherStore.list
   return teacherStore.list.filter((t) => t.status === statusFilter.value)
 })
 
+onMounted(async () => {
+  loading.value = true
+  try {
+    await apiLoadTeachers()
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '老师列表加载失败'))
+  } finally {
+    loading.value = false
+  }
+})
+
 async function approve(id: string) {
-  await apiAuditTeacher(id, 'approved')
-  ElMessage.success('已通过，老师将对外展示')
+  try {
+    await apiAuditTeacher(id, 'approved')
+    ElMessage.success('已通过，老师将对外展示')
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '审核失败'))
+  }
 }
 
 async function reject(id: string) {
@@ -26,8 +42,12 @@ async function reject(id: string) {
     cancelButtonText: '取消',
     inputPlaceholder: '如：证书信息不清晰',
   })
-  await apiAuditTeacher(id, 'rejected', value || '资料不符合要求')
-  ElMessage.success('已驳回')
+  try {
+    await apiAuditTeacher(id, 'rejected', value || '资料不符合要求')
+    ElMessage.success('已驳回')
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '驳回失败'))
+  }
 }
 </script>
 
@@ -43,7 +63,7 @@ async function reject(id: string) {
       </el-radio-group>
     </div>
 
-    <el-table :data="list" stripe border>
+    <el-table v-loading="loading" :data="list" stripe border>
       <el-table-column prop="name" label="姓名" width="100" />
       <el-table-column prop="phone" label="手机号" width="120" />
       <el-table-column label="科目" min-width="120">

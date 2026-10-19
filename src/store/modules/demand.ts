@@ -1,7 +1,5 @@
 import { defineStore } from 'pinia'
 import type { Demand } from '@/types'
-import { mockDemands } from '@/mock/demands'
-import { uid } from '@/utils'
 
 interface DemandState {
   list: Demand[]
@@ -9,7 +7,7 @@ interface DemandState {
 
 export const useDemandStore = defineStore('demand', {
   state: (): DemandState => ({
-    list: [...mockDemands],
+    list: [],
   }),
   getters: {
     openList: (state) =>
@@ -18,25 +16,18 @@ export const useDemandStore = defineStore('demand', {
         .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
   },
   actions: {
-    publish(payload: Omit<Demand, 'id' | 'status' | 'createdAt'>): Demand {
-      const item: Demand = {
-        ...payload,
-        id: uid('d'),
-        status: 'open',
-        createdAt: new Date().toISOString(),
-      }
-      this.list.unshift(item)
-      return item
+    setList(list: Demand[]) {
+      this.list = list
     },
-    close(id: string) {
-      const item = this.list.find((d) => d.id === id)
-      if (item) item.status = 'closed'
+
+    upsert(demand: Demand) {
+      const index = this.list.findIndex((item) => item.id === demand.id)
+      if (index === -1) this.list.unshift(demand)
+      else this.list[index] = demand
     },
+
     remove(id: string) {
       this.list = this.list.filter((d) => d.id !== id)
     },
-  },
-  persist: {
-    pick: ['list'],
   },
 })

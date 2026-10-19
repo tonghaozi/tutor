@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useAppStore, useUserStore } from '@/store'
 import { APP_NAME } from '@/constants'
+import { errorMessage } from '@/utils'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -15,9 +17,13 @@ const menus = [
   { path: '/admin/comments', label: '评论管理' },
 ]
 
-function logout() {
-  userStore.logout()
-  router.push('/auth/login')
+async function logout() {
+  try {
+    await userStore.logout()
+    router.push('/auth/login')
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '退出失败'))
+  }
 }
 </script>
 

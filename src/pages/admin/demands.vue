@@ -1,29 +1,50 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { apiCloseDemand, apiLoadDemands, apiRemoveDemand } from '@/api'
 import { useDemandStore } from '@/store'
 import { TEACH_MODE_MAP } from '@/constants'
-import { formatDate, maskPhone } from '@/utils'
+import { errorMessage, formatDate, maskPhone } from '@/utils'
 
 const demandStore = useDemandStore()
 const list = computed(() => demandStore.list)
+const loading = ref(false)
+
+onMounted(async () => {
+  loading.value = true
+  try {
+    await apiLoadDemands()
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '需求列表加载失败'))
+  } finally {
+    loading.value = false
+  }
+})
 
 async function close(id: string) {
-  demandStore.close(id)
-  ElMessage.success('已关闭需求')
+  try {
+    await apiCloseDemand(id)
+    ElMessage.success('已关闭需求')
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '关闭失败'))
+  }
 }
 
 async function remove(id: string) {
   await ElMessageBox.confirm('确认删除该需求？', '提示', { type: 'warning' })
-  demandStore.remove(id)
-  ElMessage.success('已删除')
+  try {
+    await apiRemoveDemand(id)
+    ElMessage.success('已删除')
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '删除失败'))
+  }
 }
 </script>
 
 <template>
   <div>
     <h1 class="title">需求管理</h1>
-    <el-table :data="list" stripe border>
+    <el-table v-loading="loading" :data="list" stripe border>
       <el-table-column prop="subject" label="科目" width="90" />
       <el-table-column prop="district" label="区域" width="100" />
       <el-table-column label="预算" width="100">

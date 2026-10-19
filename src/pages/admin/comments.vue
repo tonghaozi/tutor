@@ -1,33 +1,54 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { apiLoadComments, apiLoadTeachers, apiRemoveComment, apiSetCommentVisible } from '@/api'
 import { useCommentStore, useTeacherStore } from '@/store'
-import { formatDate } from '@/utils'
+import { errorMessage, formatDate } from '@/utils'
 
 const commentStore = useCommentStore()
 const teacherStore = useTeacherStore()
 const list = computed(() => commentStore.list)
+const loading = ref(false)
+
+onMounted(async () => {
+  loading.value = true
+  try {
+    await Promise.all([apiLoadComments(), apiLoadTeachers()])
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '评论列表加载失败'))
+  } finally {
+    loading.value = false
+  }
+})
 
 function teacherName(id: string) {
   return teacherStore.getById(id)?.name || id
 }
 
-function toggleVisible(id: string, visible: boolean) {
-  commentStore.setVisible(id, visible)
-  ElMessage.success(visible ? '已显示' : '已隐藏')
+async function toggleVisible(id: string, visible: boolean) {
+  try {
+    await apiSetCommentVisible(id, visible)
+    ElMessage.success(visible ? '已显示' : '已隐藏')
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '更新失败'))
+  }
 }
 
 async function remove(id: string) {
   await ElMessageBox.confirm('确认删除该评论？', '提示', { type: 'warning' })
-  commentStore.remove(id)
-  ElMessage.success('已删除')
+  try {
+    await apiRemoveComment(id)
+    ElMessage.success('已删除')
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '删除失败'))
+  }
 }
 </script>
 
 <template>
   <div>
     <h1 class="title">评论管理</h1>
-    <el-table :data="list" stripe border>
+    <el-table v-loading="loading" :data="list" stripe border>
       <el-table-column label="老师" min-width="100">
         <template #default="{ row }">{{ teacherName(row.teacherId) }}</template>
       </el-table-column>

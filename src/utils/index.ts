@@ -1,3 +1,12 @@
+export function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) return error.message
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = error.message
+    if (typeof message === 'string' && message) return message
+  }
+  return fallback
+}
+
 /** 简易延迟，模拟网络请求，后续可替换为 uni.request / axios */
 export function delay(ms = 200): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))

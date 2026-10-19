@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import type { Comment } from '@/types'
-import { mockComments } from '@/mock/comments'
 
 interface CommentState {
   list: Comment[]
@@ -8,9 +7,19 @@ interface CommentState {
 
 export const useCommentStore = defineStore('comment', {
   state: (): CommentState => ({
-    list: [...mockComments],
+    list: [],
   }),
   actions: {
+    setList(list: Comment[]) {
+      this.list = list
+    },
+
+    upsert(comment: Comment) {
+      const index = this.list.findIndex((item) => item.id === comment.id)
+      if (index === -1) this.list.unshift(comment)
+      else this.list[index] = comment
+    },
+
     listByTeacher(teacherId: string, onlyVisible = true): Comment[] {
       return this.list.filter((c) => c.teacherId === teacherId && (!onlyVisible || c.visible))
     },
@@ -21,8 +30,5 @@ export const useCommentStore = defineStore('comment', {
     remove(id: string) {
       this.list = this.list.filter((c) => c.id !== id)
     },
-  },
-  persist: {
-    pick: ['list'],
   },
 })

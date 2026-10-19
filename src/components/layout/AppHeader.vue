@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store'
 import { APP_NAME } from '@/constants'
+import { errorMessage } from '@/utils'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,10 +30,14 @@ function go(path: string) {
   router.push(path)
 }
 
-function logout() {
-  userStore.logout()
-  menuOpen.value = false
-  router.push('/')
+async function logout() {
+  try {
+    await userStore.logout()
+    menuOpen.value = false
+    router.push('/')
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, '退出失败'))
+  }
 }
 </script>
 
