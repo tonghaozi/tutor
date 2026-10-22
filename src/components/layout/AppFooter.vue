@@ -15,7 +15,7 @@ import { APP_NAME } from '@/constants'
         <router-link to="/teachers">找老师</router-link>
         <router-link to="/teacher/join">老师入驻</router-link>
       </div>
-      <p class="copyright">© {{ new Date().getFullYear() }} {{ APP_NAME }} MVP · 仅供演示</p>
+      <p class="copyright">© 童浩工作室 2026</p>
     </div>
   </footer>
 </template>

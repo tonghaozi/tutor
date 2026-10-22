@@ -1,25 +1,6 @@
 import { defineStore } from 'pinia'
 import type { UserInfo, UserRole } from '@/types'
-import { ADMIN_PHONE } from '@/constants'
-import { auth } from '@/lib/cloudbase'
-import {
-  assertLocalPhone,
-  authPhone,
-  deleteUser,
-  listUsers,
-  loadOwnProfile,
-  syncOwnProfile,
-  updateUserRole,
-} from '@/lib/users'
-import { errorMessage } from '@/utils'
-
-type VerifyOtp = (params: { token: string }) => Promise<{
-  data: { session?: { user: { is_anonymous: boolean } } | null }
-  error: { message: string } | null
-}>
-
-let verifyOtp: VerifyOtp | null = null
-let pendingRestore: Promise<void> | null = null
+import { getToken, request, setToken } from '@/lib/http'
 
 interface UserState {
   userInfo: UserInfo | null
@@ -42,81 +23,74 @@ export const useUserStore = defineStore('user', {
       this.userInfo = null
       this.users = []
       this.sessionChecked = true
-      verifyOtp = null
+      setToken(null)
     },
 
     async restoreSession() {
       if (this.sessionChecked) return
-      if (!pendingRestore) {
-        pendingRestore = this.pullSession().finally(() => {
-          pendingRestore = null
-        })
-      }
-      await pendingRestore
+      await this.pullSession()
     },
 
     async pullSession() {
-      const profile = await loadOwnProfile()
-      this.userInfo = profile
+      if (!getToken()) {
+        this.userInfo = null
+        this.sessionChecked = true
+        return
+      }
+      try {
+        this.userInfo = await request<UserInfo>('/auth/me')
+      } catch {
+        setToken(null)
+        this.userInfo = null
+      }
       this.sessionChecked = true
     },
 
     async sendCode(phone: string) {
-      const local = assertLocalPhone(phone)
-      const { data, error } = await auth.signInWithOtp({
-        phone: authPhone(local),
-        options: { shouldCreateUser: true },
+      return request<{ message: string }>('/auth/send-code', {
+        method: 'POST',
+        data: { phone },
       })
-      if (error || !data.verifyOtp) {
-        throw new Error(error?.message || '验证码发送失败')
-      }
-      verifyOtp = data.verifyOtp
-      return { message: '验证码已发送，请查看短信' }
     },
 
     async loginByPhone(phone: string, code: string, role: UserRole = 'student'): Promise<UserInfo> {
-      const local = assertLocalPhone(phone)
-      if (!code.trim()) throw new Error('请输入验证码')
-      if (role === 'admin' && local !== ADMIN_PHONE) {
-        throw new Error('只有管理员手机号可以管理员身份登录')
-      }
-      if (!verifyOtp) throw new Error('请先获取验证码')
-
-      const { data, error } = await verifyOtp({ token: code.trim() })
-      if (error || !data.session || data.session.user.is_anonymous) {
-        throw new Error(error?.message || '登录失败')
-      }
-      verifyOtp = null
-
-      const finalRole: UserRole = local === ADMIN_PHONE ? 'admin' : role
-      const profile = await syncOwnProfile(local, finalRole)
-      this.userInfo = profile
+      const result = await request<{ token: string; user: UserInfo }>('/auth/login', {
+        method: 'POST',
+        data: { phone, code, role },
+      })
+      setToken(result.token)
+      this.userInfo = result.user
       this.sessionChecked = true
-      return profile
+      return result.user
     },
 
     async logout() {
-      const result = await auth.signOut()
-      if (result && typeof result === 'object' && 'error' in result && result.error) {
-        throw new Error(errorMessage(result.error, '退出失败'))
+      try {
+        if (getToken()) {
+          await request('/auth/logout', { method: 'POST' })
+        }
+      } finally {
+        this.clearLocalSession()
       }
-      this.clearLocalSession()
     },
 
     async fetchUsers() {
-      this.users = await listUsers()
+      this.users = await request<UserInfo[]>('/users')
     },
 
     async updateUser(id: string, payload: Partial<UserInfo>) {
       if (!payload.role) return
-      const updated = await updateUserRole(id, payload.role)
+      const updated = await request<UserInfo>(`/users/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        data: { role: payload.role },
+      })
       const index = this.users.findIndex((user) => user.id === id)
       if (index >= 0) this.users[index] = updated
       if (this.userInfo?.id === id) this.userInfo = updated
     },
 
     async removeUser(id: string) {
-      await deleteUser(id)
+      await request(`/users/${encodeURIComponent(id)}`, { method: 'DELETE' })
       this.users = this.users.filter((user) => user.id !== id)
       if (this.userInfo?.id === id) this.userInfo = null
     },
@@ -124,8 +98,5 @@ export const useUserStore = defineStore('user', {
 })
 
 export function bindAuthListener() {
-  const userStore = useUserStore()
-  auth.onAuthStateChange((event) => {
-    if (event === 'SIGNED_OUT') userStore.clearLocalSession()
-  })
+  // 登录态保存在本机 token 里，不再监听云开发会话。
 }

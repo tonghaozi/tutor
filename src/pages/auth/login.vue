@@ -3,7 +3,7 @@ import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { apiLogin, apiSendCode } from '@/api'
-import { ADMIN_PHONE } from '@/constants'
+import { ADMIN_PHONE, MOCK_SMS_CODE } from '@/constants'
 import type { UserRole } from '@/types'
 import { errorMessage } from '@/utils'
 
@@ -49,7 +49,7 @@ async function submit() {
   <div class="page-container login-page">
     <div class="panel">
       <h1>登录 / 注册</h1>
-      <p class="desc">手机号即账号。未注册会自动创建，验证码会发送到手机。</p>
+      <p class="desc">手机号即账号。未注册会自动创建。当前验证码固定为 {{ MOCK_SMS_CODE }}。</p>
 
       <el-form label-width="80px" @submit.prevent="submit">
         <el-form-item label="身份">
@@ -79,7 +79,7 @@ async function submit() {
         type="info"
         :closable="false"
         show-icon
-        :title="`管理员手机号：${ADMIN_PHONE}，验证码会发到该手机`"
+        :title="`管理员手机号：${ADMIN_PHONE}，验证码：${MOCK_SMS_CODE}`"
       />
     </div>
   </div>

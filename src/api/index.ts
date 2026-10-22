@@ -1,5 +1,5 @@
 /**
- * 业务接口：老师、需求、评论、咨询走后端 HTTP API，登录仍走 CloudBase Auth。
+ * 业务接口和登录都走 tonghao520.top 上的后端。
  */
 import { request } from '@/lib/http'
 import { useCommentStore, useDemandStore, useTeacherStore, useUserStore } from '@/store'
@@ -56,14 +56,14 @@ export async function apiSubmitTeacherJoin(
 ) {
   return request<Teacher>('/teachers', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    data: payload,
   })
 }
 
 export async function apiAuditTeacher(id: string, status: AuditStatus, reason = '') {
   const teacher = await request<Teacher>(`/teachers/${encodeURIComponent(id)}/audit`, {
     method: 'POST',
-    body: JSON.stringify({ status, reason }),
+    data: { status, reason },
   })
   useTeacherStore().upsert(teacher)
   return teacher
@@ -82,7 +82,7 @@ export async function apiLoadDemands() {
 export async function apiPublishDemand(payload: Omit<Demand, 'id' | 'status' | 'createdAt'>) {
   return request<Demand>('/demands', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    data: payload,
   })
 }
 
@@ -110,7 +110,7 @@ export async function apiLoadComments() {
 export async function apiSetCommentVisible(id: string, visible: boolean) {
   const comment = await request<Comment>(`/comments/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    body: JSON.stringify({ visible }),
+    data: { visible },
   })
   useCommentStore().upsert(comment)
   return comment
@@ -124,7 +124,7 @@ export async function apiRemoveComment(id: string) {
 export async function apiSubmitConsult(form: ConsultForm) {
   return request<{ success: boolean; message: string }>('/consults', {
     method: 'POST',
-    body: JSON.stringify(form),
+    data: form,
   })
 }
 

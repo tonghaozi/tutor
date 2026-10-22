@@ -1,35 +1,54 @@
-import { auth } from '@/lib/cloudbase'
+import axios, { type AxiosRequestConfig, isAxiosError } from 'axios'
 import { errorMessage } from '@/utils'
 
-const base = import.meta.env.VITE_API_BASE_URL || '/api'
+const TOKEN_KEY = 'tonghao_token'
+const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
 
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const { data } = await auth.getSession()
-  const token = data.session?.access_token
-  const headers = new Headers(init.headers)
-  if (init.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json')
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setToken(token: string | null) {
+  if (token) localStorage.setItem(TOKEN_KEY, token)
+  else localStorage.removeItem(TOKEN_KEY)
+}
+
+export const http = axios.create({
+  baseURL,
+  timeout: 20000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+http.interceptors.request.use((config) => {
+  const token = getToken()
+  if (token) {
+    config.headers.set('Authorization', `Bearer ${token}`)
   }
-  if (token) headers.set('Authorization', `Bearer ${token}`)
+  return config
+})
 
-  const response = await fetch(`${base}${path}`, { ...init, headers })
-  const text = await response.text()
-  let payload: unknown = null
-  if (text) {
-    try {
-      payload = JSON.parse(text)
-    } catch {
-      payload = null
+http.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => {
+    if (isAxiosError(error)) {
+      const payload = error.response?.data
+      const message =
+        payload && typeof payload === 'object' && 'error' in payload && typeof payload.error === 'string'
+          ? payload.error
+          : error.response
+            ? `请求失败（${error.response.status}）`
+            : '网络请求失败'
+      return Promise.reject(new Error(message))
     }
-  }
-  if (!response.ok) {
-    const message =
-      payload && typeof payload === 'object' && 'error' in payload && typeof payload.error === 'string'
-        ? payload.error
-        : `请求失败（${response.status}）`
-    throw new Error(message)
-  }
-  return payload as T
+    return Promise.reject(error)
+  },
+)
+
+export async function request<T>(path: string, config: AxiosRequestConfig = {}): Promise<T> {
+  const response = await http.request<T>({ url: path, ...config })
+  return response.data
 }
 
 export function apiError(error: unknown, fallback: string) {
