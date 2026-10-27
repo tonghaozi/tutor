@@ -27,25 +27,25 @@ import { APP_NAME } from '@/constants'
 .app-footer {
   background: #1f2a37;
   color: rgba(255, 255, 255, 0.78);
-  padding: 36px 0 24px;
+  padding: 18px 0 14px;
 }
 
 .footer-inner {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 .brand-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .brand-logo {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
   display: block;
 }

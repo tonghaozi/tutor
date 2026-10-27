@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
-import type { UserInfo, UserRole } from '@/types'
+import type { UserGender, UserInfo, UserRole } from '@/types'
 import { getToken, request, setToken } from '@/lib/http'
+import { getDeviceId } from '@/utils/smsLimit'
+import { rsaEncryptPassword } from '@/utils/rsa'
 
 interface UserState {
   userInfo: UserInfo | null
@@ -47,16 +49,27 @@ export const useUserStore = defineStore('user', {
     },
 
     async sendCode(phone: string) {
-      return request<{ message: string }>('/auth/send-code', {
+      return request<{ message: string; registered: boolean; cooldown?: number }>('/auth/send-code', {
         method: 'POST',
-        data: { phone },
+        data: { phone, deviceId: getDeviceId() },
       })
     },
 
-    async loginByPhone(phone: string, code: string, role: UserRole = 'student'): Promise<UserInfo> {
+    async loginByPhone(
+      phone: string,
+      code: string,
+      role: UserRole = 'student',
+      profile?: { gender: UserGender; age: number },
+    ): Promise<UserInfo> {
       const result = await request<{ token: string; user: UserInfo }>('/auth/login', {
         method: 'POST',
-        data: { method: 'code', phone, code, role },
+        data: {
+          method: 'code',
+          phone,
+          code,
+          role,
+          ...(profile ? { gender: profile.gender, age: profile.age } : {}),
+        },
       })
       setToken(result.token)
       this.userInfo = result.user
@@ -65,9 +78,10 @@ export const useUserStore = defineStore('user', {
     },
 
     async loginByPassword(phone: string, password: string, role: UserRole = 'student'): Promise<UserInfo> {
+      const encryptedPassword = await rsaEncryptPassword(password)
       const result = await request<{ token: string; user: UserInfo }>('/auth/login', {
         method: 'POST',
-        data: { method: 'password', phone, password, role },
+        data: { method: 'password', phone, password: encryptedPassword, role },
       })
       setToken(result.token)
       this.userInfo = result.user
@@ -75,15 +89,54 @@ export const useUserStore = defineStore('user', {
       return result.user
     },
 
-    async registerByPassword(phone: string, password: string, role: UserRole = 'student'): Promise<UserInfo> {
+    async registerByPassword(
+      phone: string,
+      password: string,
+      role: UserRole = 'student',
+      profile: { gender: UserGender; age: number },
+    ): Promise<UserInfo> {
+      const encryptedPassword = await rsaEncryptPassword(password)
       const result = await request<{ token: string; user: UserInfo }>('/auth/register', {
         method: 'POST',
-        data: { phone, password, role },
+        data: {
+          phone,
+          password: encryptedPassword,
+          role,
+          gender: profile.gender,
+          age: profile.age,
+        },
       })
       setToken(result.token)
       this.userInfo = result.user
       this.sessionChecked = true
       return result.user
+    },
+
+    async updateProfile(payload: { name?: string; gender?: UserGender; age?: number }) {
+      const updated = await request<UserInfo>('/auth/profile', {
+        method: 'PATCH',
+        data: payload,
+      })
+      this.userInfo = updated
+      return updated
+    },
+
+    async changePhone(phone: string, code: string) {
+      const updated = await request<UserInfo>('/auth/change-phone', {
+        method: 'POST',
+        data: { phone, code },
+      })
+      this.userInfo = updated
+      return updated
+    },
+
+    async uploadAvatar(avatarDataUrl: string) {
+      const updated = await request<UserInfo>('/auth/avatar', {
+        method: 'POST',
+        data: { avatar: avatarDataUrl },
+      })
+      this.userInfo = updated
+      return updated
     },
 
     async logout() {
@@ -94,6 +147,26 @@ export const useUserStore = defineStore('user', {
       } finally {
         this.clearLocalSession()
       }
+    },
+
+    async changePassword(payload: {
+      method: 'code' | 'password'
+      code?: string
+      oldPassword?: string
+      newPassword: string
+    }) {
+      const data: Record<string, string> = {
+        method: payload.method,
+        newPassword: await rsaEncryptPassword(payload.newPassword),
+      }
+      if (payload.code) data.code = payload.code
+      if (payload.oldPassword) {
+        data.oldPassword = await rsaEncryptPassword(payload.oldPassword)
+      }
+      return request<{ ok: boolean; message: string }>('/auth/change-password', {
+        method: 'POST',
+        data,
+      })
     },
 
     async fetchUsers() {

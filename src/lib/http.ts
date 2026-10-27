@@ -26,6 +26,14 @@ http.interceptors.request.use((config) => {
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`)
   }
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    // 必须去掉默认 application/json，否则 multipart 解析失败
+    if (typeof config.headers.set === 'function') {
+      config.headers.set('Content-Type', false as unknown as string)
+    } else {
+      delete (config.headers as Record<string, unknown>)['Content-Type']
+    }
+  }
   return config
 })
 

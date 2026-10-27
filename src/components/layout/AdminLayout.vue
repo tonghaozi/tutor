@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import ChangePasswordDialog from '@/components/auth/ChangePasswordDialog.vue'
 import { useAppStore, useUserStore } from '@/store'
 import { APP_NAME } from '@/constants'
 import { errorMessage } from '@/utils'
@@ -8,6 +10,7 @@ import { errorMessage } from '@/utils'
 const router = useRouter()
 const appStore = useAppStore()
 const userStore = useUserStore()
+const passwordDialogVisible = ref(false)
 
 const menus = [
   { path: '/admin', label: '数据看板' },
@@ -58,6 +61,7 @@ async function logout() {
         </el-button>
         <div class="top-right">
           <span>{{ userStore.userInfo?.name }}</span>
+          <el-button text type="primary" @click="passwordDialogVisible = true">修改密码</el-button>
           <el-button text type="primary" @click="router.push('/')">返回前台</el-button>
           <el-button text type="danger" @click="logout">退出</el-button>
         </div>
@@ -66,13 +70,16 @@ async function logout() {
         <RouterView />
       </main>
     </div>
+
+    <ChangePasswordDialog v-model="passwordDialogVisible" />
   </div>
 </template>
 
 <style scoped lang="scss">
 .admin-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
   background: $color-bg;
 }
 
@@ -80,6 +87,7 @@ async function logout() {
   width: 220px;
   background: #1f2a37;
   flex-shrink: 0;
+  overflow-y: auto;
   transition: width 0.2s;
 }
 
@@ -125,12 +133,15 @@ async function logout() {
 .admin-main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .admin-top {
   height: 56px;
+  flex-shrink: 0;
   background: #fff;
   border-bottom: 1px solid $color-border;
   display: flex;
@@ -147,7 +158,11 @@ async function logout() {
 }
 
 .admin-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   padding: 20px;
+  -webkit-overflow-scrolling: touch;
 }
 
 @media (max-width: $breakpoint-md) {

@@ -7,23 +7,38 @@ import RiskNotice from './RiskNotice.vue'
 
 <template>
   <div class="main-layout">
-    <AppHeader />
+    <AppHeader class="layout-header" />
     <main class="main-content">
       <RouterView />
     </main>
-    <RiskNotice />
-    <AppFooter />
+    <div class="layout-bottom">
+      <RiskNotice />
+      <AppFooter />
+    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
 .main-layout {
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.layout-header {
+  flex-shrink: 0;
 }
 
 .main-content {
   flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.layout-bottom {
+  flex-shrink: 0;
 }
 </style>

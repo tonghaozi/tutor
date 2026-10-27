@@ -2,6 +2,8 @@
 
 export type UserRole = 'student' | 'teacher' | 'admin'
 
+export type UserGender = 'male' | 'female'
+
 export type AuditStatus = 'pending' | 'approved' | 'rejected'
 
 export type TeachMode = 'offline' | 'online' | 'both'
@@ -36,6 +38,8 @@ export interface UserInfo {
   name: string
   role: UserRole
   avatar?: string
+  gender?: UserGender
+  age?: number
   createdAt: string
 }
 
@@ -45,6 +49,8 @@ export interface Teacher {
   name: string
   phone: string
   avatar: string
+  gender?: UserGender
+  age?: number
   subjects: Subject[]
   districts: RegionPath[]
   price: number
@@ -71,6 +77,8 @@ export interface Demand {
   teachMode: TeachMode
   remark: string
   phone: string
+  gender?: UserGender
+  age?: number
   status: 'open' | 'closed'
   createdAt: string
 }

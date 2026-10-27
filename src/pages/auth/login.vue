@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import {
@@ -8,9 +8,21 @@ import {
   apiRegisterByPassword,
   apiSendCode,
 } from "@/api";
+import GenderIcon from "@/components/common/GenderIcon.vue";
 import { APP_NAME } from "@/constants";
-import type { UserRole } from "@/types";
-import { errorMessage } from "@/utils";
+import type { UserGender, UserRole } from "@/types";
+import {
+  errorMessage,
+  isStrongPassword,
+  PASSWORD_RULE_HINT,
+  passwordRuleError,
+} from "@/utils";
+import {
+  assertSmsSendable,
+  getSmsCooldownRemain,
+  markSmsSent,
+  SMS_COOLDOWN_SECONDS,
+} from "@/utils/smsLimit";
 
 type AuthMode = "code" | "password";
 type PasswordMode = "login" | "register";
@@ -22,6 +34,7 @@ const sending = ref(false);
 const authMode = ref<AuthMode>("code");
 const passwordMode = ref<PasswordMode>("login");
 const codeStep = ref<"phone" | "code">("phone");
+const phoneRegistered = ref(true);
 const agreed = ref(true);
 const countdown = ref(0);
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -34,6 +47,8 @@ const form = reactive({
   code: "",
   password: "",
   confirmPassword: "",
+  gender: "male" as UserGender,
+  age: "" as string | number,
   role: (queryRole === "teacher" ? "teacher" : "student") as UserRole,
 });
 
@@ -44,10 +59,19 @@ const roles = [
 
 const phoneValid = computed(() => /^1\d{10}$/.test(form.phone));
 const codeValid = computed(() => /^\d{6}$/.test(form.code));
-const passwordValid = computed(
-  () => form.password.length >= 6 && form.password.length <= 32,
-);
+const passwordValid = computed(() => {
+  if (passwordMode.value === "register") return isStrongPassword(form.password);
+  return form.password.length > 0 && form.password.length <= 32;
+});
 const confirmValid = computed(() => form.password === form.confirmPassword);
+const ageNumber = computed(() => {
+  const n = Number(form.age);
+  return Number.isInteger(n) ? n : NaN;
+});
+const ageValid = computed(() => ageNumber.value >= 1 && ageNumber.value <= 120);
+const registerProfileValid = computed(
+  () => (form.gender === "male" || form.gender === "female") && ageValid.value,
+);
 const maskedPhone = computed(() => {
   if (!phoneValid.value) return form.phone;
   return `${form.phone.slice(0, 3)} **** ${form.phone.slice(7)}`;
@@ -62,16 +86,20 @@ const sendLabel = computed(() => {
 });
 const titleText = computed(() => {
   if (authMode.value === "code") {
-    return codeStep.value === "phone" ? "验证码登录" : "输入验证码";
+    if (codeStep.value === "phone") return "验证码登录";
+    return phoneRegistered.value ? "输入验证码" : "完善资料并登录";
   }
   return passwordMode.value === "login" ? "账号密码登录" : "注册账号";
 });
 const descText = computed(() => {
   if (authMode.value === "code") {
     if (codeStep.value === "code") {
+      if (!phoneRegistered.value) {
+        return `新手机号 ${maskedPhone.value}，请填写性别和年龄后登录`;
+      }
       return `验证码已发送至 ${maskedPhone.value}`;
     }
-    return "未注册手机号会自动创建账号";
+    return "已注册手机号直接登录；新手机号需补充性别和年龄";
   }
   if (passwordMode.value === "login") {
     return "使用手机号和密码登录已有账号";
@@ -85,15 +113,26 @@ watch(
     if (codeStep.value === "code") {
       codeStep.value = "phone";
       form.code = "";
+      phoneRegistered.value = true;
+      clearTimer();
+      countdown.value = 0;
+      restoreDeviceCooldown();
     }
   },
 );
 
 watch(authMode, () => {
   codeStep.value = "phone";
+  phoneRegistered.value = true;
+  passwordMode.value = "login";
   form.code = "";
   form.password = "";
   form.confirmPassword = "";
+  form.age = "";
+  form.gender = "male";
+  clearTimer();
+  countdown.value = 0;
+  restoreDeviceCooldown();
 });
 
 function clearTimer() {
@@ -103,15 +142,26 @@ function clearTimer() {
   }
 }
 
-function startCountdown(seconds = 60) {
+function startCountdown(seconds = SMS_COOLDOWN_SECONDS) {
   clearTimer();
   countdown.value = seconds;
+  if (seconds <= 0) return;
   timer = setInterval(() => {
     countdown.value -= 1;
     if (countdown.value <= 0) clearTimer();
   }, 1000);
 }
 
+function restoreDeviceCooldown() {
+  const remain = getSmsCooldownRemain();
+  if (remain > 0) startCountdown(remain);
+  else {
+    clearTimer();
+    countdown.value = 0;
+  }
+}
+
+onMounted(restoreDeviceCooldown);
 onUnmounted(clearTimer);
 
 function ensureAgreed() {
@@ -136,15 +186,34 @@ async function sendCode() {
     return;
   }
   if (!ensureAgreed()) return;
-  if (countdown.value > 0 || sending.value) return;
+  if (countdown.value > 0 || sending.value) {
+    if (countdown.value > 0) {
+      ElMessage.warning(`发送太频繁，请 ${countdown.value} 秒后再试`);
+    }
+    return;
+  }
+  try {
+    assertSmsSendable();
+  } catch (error: unknown) {
+    restoreDeviceCooldown();
+    ElMessage.warning(errorMessage(error, "发送太频繁，请稍后再试"));
+    return;
+  }
 
   sending.value = true;
   try {
     const res = await apiSendCode(form.phone);
-    ElMessage.success(res.message);
+    phoneRegistered.value = Boolean(res.registered);
+    markSmsSent();
+    ElMessage.success(
+      phoneRegistered.value
+        ? res.message
+        : `${res.message}，请补充性别和年龄`,
+    );
     codeStep.value = "code";
-    startCountdown();
+    startCountdown(res.cooldown || SMS_COOLDOWN_SECONDS);
   } catch (error: unknown) {
+    restoreDeviceCooldown();
     ElMessage.error(errorMessage(error, "发送失败"));
   } finally {
     sending.value = false;
@@ -154,6 +223,10 @@ async function sendCode() {
 function backToPhone() {
   codeStep.value = "phone";
   form.code = "";
+  phoneRegistered.value = true;
+  clearTimer();
+  countdown.value = 0;
+  restoreDeviceCooldown();
 }
 
 async function submitCodeLogin() {
@@ -165,11 +238,22 @@ async function submitCodeLogin() {
     ElMessage.warning("请输入 6 位验证码");
     return;
   }
+  if (!phoneRegistered.value && !registerProfileValid.value) {
+    ElMessage.warning("新手机号请选择性别并填写 1-120 的年龄");
+    return;
+  }
   if (!ensureAgreed()) return;
 
   loading.value = true;
   try {
-    const user = await apiLogin(form.phone, form.code, submitRole.value);
+    const user = await apiLogin(
+      form.phone,
+      form.code,
+      submitRole.value,
+      phoneRegistered.value
+        ? undefined
+        : { gender: form.gender, age: ageNumber.value },
+    );
     await afterLogin(user);
   } catch (error: unknown) {
     ElMessage.error(errorMessage(error, "登录失败"));
@@ -183,12 +267,22 @@ async function submitPassword() {
     ElMessage.warning("请输入正确的手机号");
     return;
   }
-  if (!passwordValid.value) {
-    ElMessage.warning("密码长度需要 6 到 32 位");
+  if (passwordMode.value === "register") {
+    const ruleError = passwordRuleError(form.password);
+    if (ruleError) {
+      ElMessage.warning(ruleError);
+      return;
+    }
+  } else if (!passwordValid.value) {
+    ElMessage.warning("请输入密码");
     return;
   }
   if (passwordMode.value === "register" && !confirmValid.value) {
     ElMessage.warning("两次输入的密码不一致");
+    return;
+  }
+  if (passwordMode.value === "register" && !registerProfileValid.value) {
+    ElMessage.warning("请选择性别并填写 1-120 的年龄");
     return;
   }
   if (!ensureAgreed()) return;
@@ -201,6 +295,7 @@ async function submitPassword() {
             form.phone,
             form.password,
             submitRole.value,
+            { gender: form.gender, age: ageNumber.value },
           )
         : await apiLoginByPassword(form.phone, form.password, submitRole.value);
     await afterLogin(user);
@@ -236,7 +331,7 @@ function onPrimarySubmit() {
           支持手机验证码登录，也可以用账号密码登录。学员找老师、老师接咨询，选好身份后继续。
         </p>
         <ul class="aside-points">
-          <li>验证码登录：未注册自动创建</li>
+          <li>验证码登录：新号需填性别年龄</li>
           <li>账号密码：适合常用登录</li>
           <li>平台只做信息撮合，不收取课时费</li>
         </ul>
@@ -331,6 +426,44 @@ function onPrimarySubmit() {
                 </button>
               </div>
             </label>
+            <div
+              v-if="codeStep === 'code' && !phoneRegistered"
+              class="profile-row"
+            >
+              <label class="field">
+                <span class="field-label">性别</span>
+                <div class="gender-row">
+                  <button
+                    type="button"
+                    :class="['gender-btn', { active: form.gender === 'male' }]"
+                    @click="form.gender = 'male'"
+                  >
+                    <GenderIcon gender="male" />
+                    男
+                  </button>
+                  <button
+                    type="button"
+                    :class="['gender-btn', { active: form.gender === 'female' }]"
+                    @click="form.gender = 'female'"
+                  >
+                    <GenderIcon gender="female" />
+                    女
+                  </button>
+                </div>
+              </label>
+              <label class="field">
+                <span class="field-label">年龄</span>
+                <input
+                  v-model="form.age"
+                  class="field-input"
+                  type="number"
+                  min="1"
+                  max="120"
+                  inputmode="numeric"
+                  placeholder="请输入年龄"
+                />
+              </label>
+            </div>
           </template>
 
           <template v-else>
@@ -342,7 +475,11 @@ function onPrimarySubmit() {
                 type="password"
                 maxlength="32"
                 autocomplete="current-password"
-                placeholder="请输入 6-32 位密码"
+                :placeholder="
+                  passwordMode === 'register'
+                    ? PASSWORD_RULE_HINT
+                    : '请输入密码'
+                "
               />
             </label>
             <label v-if="passwordMode === 'register'" class="field">
@@ -356,6 +493,44 @@ function onPrimarySubmit() {
                 placeholder="请再次输入密码"
               />
             </label>
+            <p v-if="passwordMode === 'register'" class="field-tip">
+              {{ PASSWORD_RULE_HINT }}
+            </p>
+            <div v-if="passwordMode === 'register'" class="profile-row">
+              <label class="field">
+                <span class="field-label">性别</span>
+                <div class="gender-row">
+                  <button
+                    type="button"
+                    :class="['gender-btn', { active: form.gender === 'male' }]"
+                    @click="form.gender = 'male'"
+                  >
+                    <GenderIcon gender="male" />
+                    男
+                  </button>
+                  <button
+                    type="button"
+                    :class="['gender-btn', { active: form.gender === 'female' }]"
+                    @click="form.gender = 'female'"
+                  >
+                    <GenderIcon gender="female" />
+                    女
+                  </button>
+                </div>
+              </label>
+              <label class="field">
+                <span class="field-label">年龄</span>
+                <input
+                  v-model="form.age"
+                  class="field-input"
+                  type="number"
+                  min="1"
+                  max="120"
+                  inputmode="numeric"
+                  placeholder="请输入年龄"
+                />
+              </label>
+            </div>
           </template>
 
           <label class="agree">
@@ -384,9 +559,19 @@ function onPrimarySubmit() {
             v-else-if="authMode === 'code'"
             type="submit"
             class="primary-btn"
-            :disabled="loading || !codeValid"
+            :disabled="
+              loading ||
+              !codeValid ||
+              (!phoneRegistered && !registerProfileValid)
+            "
           >
-            {{ loading ? "登录中…" : "登录 / 注册" }}
+            {{
+              loading
+                ? "登录中…"
+                : phoneRegistered
+                  ? "登录"
+                  : "注册并登录"
+            }}
           </button>
           <button
             v-else
@@ -396,7 +581,8 @@ function onPrimarySubmit() {
               loading ||
               !phoneValid ||
               !passwordValid ||
-              (passwordMode === 'register' && !confirmValid)
+              (passwordMode === 'register' &&
+                (!confirmValid || !registerProfileValid))
             "
           >
             {{
@@ -768,6 +954,60 @@ function onPrimarySubmit() {
   margin-top: 14px;
   font-size: 13px;
   color: $color-text-secondary;
+}
+
+.field-tip {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.5;
+}
+
+.profile-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.gender-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.gender-btn {
+  height: 40px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  background: #fff;
+  color: $color-text-secondary;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease,
+    transform 0.15s ease;
+
+  &:hover {
+    border-color: rgba(59, 158, 255, 0.45);
+    color: $color-text;
+  }
+
+  &.active {
+    border-color: $color-primary;
+    color: $color-primary;
+    background: $color-primary-light;
+    font-weight: 600;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 .footer-tip {

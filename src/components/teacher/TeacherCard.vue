@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import GenderIcon from '@/components/common/GenderIcon.vue'
 import type { Teacher } from '@/types'
 import { TEACH_MODE_MAP } from '@/constants'
 import { formatRegions } from '@/utils/region'
+import { resolveAvatar } from '@/utils'
 
 defineProps<{
   teacher: Teacher
@@ -18,9 +20,22 @@ function goDetail(id: string) {
 <template>
   <article class="teacher-card" @click="goDetail(teacher.id)">
     <div class="card-top">
-      <img :src="teacher.avatar" :alt="teacher.name" class="avatar" />
+      <img
+        :src="resolveAvatar(teacher.avatar, teacher.gender)"
+        :alt="teacher.name"
+        class="avatar"
+        @error="($event.target as HTMLImageElement).src = resolveAvatar(undefined, teacher.gender)"
+      />
       <div class="meta">
-        <h3>{{ teacher.name }}</h3>
+        <h3 class="name-row">
+          <span class="name">{{ teacher.name }}</span>
+          <GenderIcon
+            v-if="teacher.gender === 'male' || teacher.gender === 'female'"
+            :gender="teacher.gender"
+            class="gender"
+          />
+          <span v-if="teacher.age" class="age">{{ teacher.age }}岁</span>
+        </h3>
         <div class="tags">
           <el-tag v-for="s in teacher.subjects" :key="s" size="small" effect="plain">{{ s }}</el-tag>
         </div>
@@ -75,11 +90,32 @@ function goDetail(id: string) {
 .meta {
   flex: 1;
   min-width: 0;
+}
 
-  h3 {
-    margin: 0 0 8px;
-    font-size: 16px;
-  }
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 16px;
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gender {
+  font-size: 15px;
+}
+
+.age {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: $color-text-secondary;
 }
 
 .tags {

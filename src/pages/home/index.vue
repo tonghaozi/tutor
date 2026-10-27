@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import GenderIcon from '@/components/common/GenderIcon.vue'
 import TeacherCard from '@/components/teacher/TeacherCard.vue'
 import DistrictBar from '@/components/layout/DistrictBar.vue'
 import { apiGetDemands, apiGetHotTeachers } from '@/api'
@@ -137,6 +138,14 @@ onMounted(load)
           <div class="demand-main">
             <el-tag size="small" type="warning" effect="plain">{{ d.subject }}</el-tag>
             <strong>{{ formatRegion(d.district) }} · {{ TEACH_MODE_MAP[d.teachMode] }}</strong>
+            <span v-if="d.gender === 'male' || d.gender === 'female' || d.age" class="profile-meta">
+              <GenderIcon
+                v-if="d.gender === 'male' || d.gender === 'female'"
+                :gender="d.gender"
+                class="gender"
+              />
+              <span v-if="d.age">{{ d.age }}岁</span>
+            </span>
             <span class="budget">预算 ¥{{ d.budget }}/课时</span>
           </div>
           <p>{{ d.remark }}</p>
@@ -287,6 +296,18 @@ h1 {
   strong {
     font-size: 14px;
   }
+}
+
+.profile-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: $color-text-secondary;
+}
+
+.gender {
+  font-size: 14px;
 }
 
 .budget {

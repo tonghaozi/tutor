@@ -14,7 +14,7 @@
   background: $color-accent-light;
   border-top: 1px solid rgba($color-accent, 0.25);
   border-bottom: 1px solid rgba($color-accent, 0.25);
-  padding: 12px 0;
+  padding: 8px 0;
 }
 
 p {

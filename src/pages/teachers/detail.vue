@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import ConsultDialog from '@/components/teacher/ConsultDialog.vue'
 import { apiGetComments, apiGetTeacherDetail } from '@/api'
 import { TEACH_MODE_MAP } from '@/constants'
-import { formatDate } from '@/utils'
+import { formatDate, resolveAvatar } from '@/utils'
 import { formatRegions } from '@/utils/region'
 import type { Comment, Teacher } from '@/types'
 
@@ -40,7 +40,12 @@ onMounted(load)
       <el-button text type="primary" class="back" @click="router.push('/teachers')">← 返回列表</el-button>
 
       <section class="profile">
-        <img :src="teacher.avatar" :alt="teacher.name" class="avatar" />
+        <img
+          :src="resolveAvatar(teacher.avatar)"
+          :alt="teacher.name"
+          class="avatar"
+          @error="($event.target as HTMLImageElement).src = resolveAvatar()"
+        />
         <div class="info">
           <h1>{{ teacher.name }}</h1>
           <div class="tags">

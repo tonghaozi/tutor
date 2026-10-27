@@ -2,15 +2,17 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import ChangePasswordDialog from '@/components/auth/ChangePasswordDialog.vue'
 import CityPicker from './CityPicker.vue'
 import { useUserStore } from '@/store'
 import { APP_NAME } from '@/constants'
-import { errorMessage } from '@/utils'
+import { errorMessage, resolveAvatar } from '@/utils'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const menuOpen = ref(false)
+const passwordDialogVisible = ref(false)
 
 const navItems = [
   { path: '/', label: '首页' },
@@ -25,10 +27,23 @@ const isActive = (path: string) => {
 }
 
 const displayName = computed(() => userStore.userInfo?.name || '')
+const avatarUrl = computed(() =>
+  resolveAvatar(userStore.userInfo?.avatar, userStore.userInfo?.gender),
+)
 
 function go(path: string) {
   menuOpen.value = false
   router.push(path)
+}
+
+function openChangePassword() {
+  menuOpen.value = false
+  passwordDialogVisible.value = true
+}
+
+function goProfile() {
+  menuOpen.value = false
+  router.push('/profile')
 }
 
 async function logout() {
@@ -65,20 +80,31 @@ async function logout() {
 
       <div class="header-actions">
         <template v-if="userStore.isLogin">
-          <el-dropdown>
-            <span class="user-entry">
-              {{ displayName }}
-              <el-tag v-if="userStore.isAdmin" size="small" type="warning" effect="plain">管理</el-tag>
-            </span>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item v-if="userStore.isAdmin" @click="go('/admin')">
-                  管理后台
-                </el-dropdown-item>
-                <el-dropdown-item divided @click="logout">退出登录</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <div class="user-area">
+            <button class="avatar-btn" type="button" title="个人中心" @click="goProfile">
+              <img
+                class="user-avatar"
+                :src="avatarUrl"
+                alt="头像"
+                @error="($event.target as HTMLImageElement).src = resolveAvatar(undefined, userStore.userInfo?.gender)"
+              />
+            </button>
+            <el-dropdown>
+              <span class="user-entry">
+                {{ displayName }}
+                <el-tag v-if="userStore.isAdmin" size="small" type="warning" effect="plain">管理</el-tag>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="userStore.isAdmin" @click="go('/admin')">
+                    管理后台
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="openChangePassword">修改密码</el-dropdown-item>
+                  <el-dropdown-item divided @click="logout">退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </template>
         <el-button v-else type="primary" round @click="go('/auth/login')">登录/注册</el-button>
 
@@ -99,15 +125,19 @@ async function logout() {
       </a>
       <a v-if="userStore.isAdmin" class="nav-link" @click.prevent="go('/admin')">管理后台</a>
       <a v-if="!userStore.isLogin" class="nav-link" @click.prevent="go('/auth/login')">登录/注册</a>
-      <a v-else class="nav-link" @click.prevent="logout">退出登录</a>
+      <template v-else>
+        <a class="nav-link" @click.prevent="goProfile">个人中心</a>
+        <a class="nav-link" @click.prevent="openChangePassword">修改密码</a>
+        <a class="nav-link" @click.prevent="logout">退出登录</a>
+      </template>
     </div>
+
+    <ChangePasswordDialog v-model="passwordDialogVisible" />
   </header>
 </template>
 
 <style scoped lang="scss">
 .app-header {
-  position: sticky;
-  top: 0;
   z-index: 100;
   background: rgba(255, 255, 255, 0.96);
   border-bottom: 1px solid $color-border;
@@ -172,6 +202,29 @@ async function logout() {
   align-items: center;
   gap: 12px;
   margin-left: auto;
+}
+
+.user-area {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  background: #f3f5f8;
 }
 
 .user-entry {

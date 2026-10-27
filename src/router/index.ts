@@ -43,6 +43,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '登录注册' },
       },
       {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/pages/profile/index.vue'),
+        meta: { title: '个人中心', requiresAuth: true },
+      },
+      {
         path: 'legal/agreement',
         name: 'Agreement',
         component: () => import('@/pages/legal/agreement.vue'),
@@ -118,6 +124,9 @@ router.beforeEach(async (to) => {
   }
   if (to.meta.requiresAdmin && !userStore.isAdmin) {
     return { name: 'Login', query: { redirect: to.fullPath, role: 'admin' } }
+  }
+  if (to.meta.requiresAuth && !userStore.isLogin) {
+    return { name: 'Login', query: { redirect: to.fullPath } }
   }
   document.title = `${(to.meta.title as string) || '首页'} - 同号音乐家教`
   return true

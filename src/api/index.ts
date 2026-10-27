@@ -10,23 +10,55 @@ import type {
   Demand,
   Teacher,
   TeacherFilter,
+  UserGender,
   UserRole,
 } from '@/types'
 
-export async function apiLogin(phone: string, code: string, role: UserRole = 'student') {
-  return useUserStore().loginByPhone(phone, code, role)
+export async function apiLogin(
+  phone: string,
+  code: string,
+  role: UserRole = 'student',
+  profile?: { gender: UserGender; age: number },
+) {
+  return useUserStore().loginByPhone(phone, code, role, profile)
 }
 
 export async function apiLoginByPassword(phone: string, password: string, role: UserRole = 'student') {
   return useUserStore().loginByPassword(phone, password, role)
 }
 
-export async function apiRegisterByPassword(phone: string, password: string, role: UserRole = 'student') {
-  return useUserStore().registerByPassword(phone, password, role)
+export async function apiRegisterByPassword(
+  phone: string,
+  password: string,
+  role: UserRole = 'student',
+  profile: { gender: UserGender; age: number },
+) {
+  return useUserStore().registerByPassword(phone, password, role, profile)
+}
+
+export async function apiUpdateProfile(payload: { name?: string; gender?: UserGender; age?: number }) {
+  return useUserStore().updateProfile(payload)
+}
+
+export async function apiChangePhone(phone: string, code: string) {
+  return useUserStore().changePhone(phone, code)
+}
+
+export async function apiUploadAvatar(avatarDataUrl: string) {
+  return useUserStore().uploadAvatar(avatarDataUrl)
 }
 
 export async function apiSendCode(phone: string) {
   return useUserStore().sendCode(phone)
+}
+
+export async function apiChangePassword(payload: {
+  method: 'code' | 'password'
+  code?: string
+  oldPassword?: string
+  newPassword: string
+}) {
+  return useUserStore().changePassword(payload)
 }
 
 function teacherQuery(filter: TeacherFilter) {
