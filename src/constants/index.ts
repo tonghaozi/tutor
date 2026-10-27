@@ -1,6 +1,6 @@
 import type { Subject, TeachMode } from '@/types'
 
-export const APP_NAME = '同号家教'
+export const APP_NAME = '同号音乐家教'
 
 export const APP_SLOGAN = '全国音乐家教信息撮合'
 

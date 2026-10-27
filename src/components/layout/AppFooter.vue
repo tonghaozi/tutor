@@ -10,7 +10,7 @@ import { APP_NAME } from '@/constants'
           <img class="brand-logo" src="/logo/logo.png" :alt="APP_NAME" />
           <strong>{{ APP_NAME }}</strong>
         </div>
-        <p>全国家教信息撮合平台 · 支持省市区筛选，主打吉他家教</p>
+        <p>全国音乐家教信息撮合平台 · 支持省市区筛选，主打吉他家教</p>
       </div>
       <div class="footer-links">
         <router-link to="/legal/agreement">用户协议</router-link>

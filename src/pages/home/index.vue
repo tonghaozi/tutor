@@ -153,7 +153,7 @@ onMounted(load)
     <section class="page-container section about">
       <h2 class="section-title">平台简介</h2>
       <p class="section-desc">
-        {{ APP_NAME }}是全国性家教信息撮合平台：学员可按城市与区县浏览已审核老师、发布求聘需求；老师可提交入驻资料，经管理员审核通过后对外展示。平台不提供支付功能，课时费用由双方自行约定与结算。当前开放科目：{{
+        {{ APP_NAME }}是全国性音乐家教信息撮合平台：学员可按城市与区县浏览已审核老师、发布求聘需求；老师可提交入驻资料，经管理员审核通过后对外展示。平台不提供支付功能，课时费用由双方自行约定与结算。当前开放科目：{{
           SUBJECTS.join('、')
         }}。
       </p>

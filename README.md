@@ -1,4 +1,4 @@
-# 同号家教（MVP）
+# 同号音乐家教（MVP）
 
 Vue3 + Vite + Element Plus + SCSS + TypeScript 前端。支持全国省市区筛选，业务接口走 HTTP API。
 
