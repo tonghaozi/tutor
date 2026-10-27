@@ -5,6 +5,7 @@ import { apiAuditTeacher, apiLoadTeachers } from '@/api'
 import { useTeacherStore } from '@/store'
 import { AUDIT_STATUS_MAP, TEACH_MODE_MAP } from '@/constants'
 import { errorMessage, formatDate } from '@/utils'
+import { formatRegions } from '@/utils/region'
 import type { AuditStatus } from '@/types'
 
 const teacherStore = useTeacherStore()
@@ -69,8 +70,8 @@ async function reject(id: string) {
       <el-table-column label="科目" min-width="120">
         <template #default="{ row }">{{ row.subjects.join('、') }}</template>
       </el-table-column>
-      <el-table-column label="区域" min-width="140">
-        <template #default="{ row }">{{ row.districts.join('、') }}</template>
+      <el-table-column label="地区" min-width="180">
+        <template #default="{ row }">{{ formatRegions(row.districts) }}</template>
       </el-table-column>
       <el-table-column label="报价" width="90">
         <template #default="{ row }">¥{{ row.price }}</template>

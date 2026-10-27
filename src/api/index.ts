@@ -1,5 +1,5 @@
 /**
- * 业务接口和登录都走 tonghao520.top 上的后端。
+ * 业务接口和登录都走服务器上的后端。域名未备案，先用 IP。
  */
 import { request } from '@/lib/http'
 import { useCommentStore, useDemandStore, useTeacherStore, useUserStore } from '@/store'
@@ -15,6 +15,14 @@ import type {
 
 export async function apiLogin(phone: string, code: string, role: UserRole = 'student') {
   return useUserStore().loginByPhone(phone, code, role)
+}
+
+export async function apiLoginByPassword(phone: string, password: string, role: UserRole = 'student') {
+  return useUserStore().loginByPassword(phone, password, role)
+}
+
+export async function apiRegisterByPassword(phone: string, password: string, role: UserRole = 'student') {
+  return useUserStore().registerByPassword(phone, password, role)
 }
 
 export async function apiSendCode(phone: string) {

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
 import type { TeacherFilter } from '@/types'
-import { DISTRICTS, SUBJECTS, TEACH_MODE_OPTIONS } from '@/constants'
+import { SUBJECTS, TEACH_MODE_OPTIONS } from '@/constants'
+import DistrictBar from '@/components/layout/DistrictBar.vue'
+import { useAppStore } from '@/store'
 
 const props = withDefaults(
   defineProps<{
@@ -19,10 +21,12 @@ const emit = defineEmits<{
   search: [value: TeacherFilter]
 }>()
 
+const appStore = useAppStore()
+
 const form = reactive<TeacherFilter>({
   keyword: '',
   subject: '',
-  district: '',
+  district: appStore.regionPath,
   teachMode: '',
   priceMin: null,
   priceMax: null,
@@ -35,7 +39,16 @@ watch(
   { deep: true },
 )
 
+watch(
+  () => appStore.regionPath,
+  (path) => {
+    form.district = path
+    emitChange()
+  },
+)
+
 function emitChange() {
+  form.district = appStore.regionPath
   const payload = { ...form }
   emit('update:modelValue', payload)
   emit('search', payload)
@@ -44,10 +57,11 @@ function emitChange() {
 function reset() {
   form.keyword = ''
   form.subject = ''
-  form.district = ''
   form.teachMode = ''
   form.priceMin = null
   form.priceMax = null
+  appStore.clearDistrict()
+  form.district = appStore.regionPath
   emitChange()
 }
 </script>
@@ -67,11 +81,6 @@ function reset() {
       <el-form-item label="学科">
         <el-select v-model="form.subject" clearable placeholder="全部" style="width: 120px">
           <el-option v-for="s in SUBJECTS" :key="s" :label="s" :value="s" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="区域">
-        <el-select v-model="form.district" clearable placeholder="合肥各区" style="width: 130px">
-          <el-option v-for="d in DISTRICTS" :key="d" :label="d" :value="d" />
         </el-select>
       </el-form-item>
       <el-form-item label="方式">
@@ -96,6 +105,8 @@ function reset() {
         <el-button @click="reset">重置</el-button>
       </el-form-item>
     </el-form>
+
+    <DistrictBar class="district-row" />
   </div>
 </template>
 
@@ -104,8 +115,14 @@ function reset() {
   background: $color-white;
   border: 1px solid $color-border;
   border-radius: $radius-md;
-  padding: 16px 16px 0;
+  padding: 16px 16px 12px;
   margin-bottom: 20px;
+}
+
+.district-row {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px dashed $color-border;
 }
 
 .price-range {

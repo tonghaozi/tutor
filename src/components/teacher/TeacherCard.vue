@@ -2,6 +2,7 @@
 import { useRouter } from 'vue-router'
 import type { Teacher } from '@/types'
 import { TEACH_MODE_MAP } from '@/constants'
+import { formatRegions } from '@/utils/region'
 
 defineProps<{
   teacher: Teacher
@@ -31,7 +32,7 @@ function goDetail(id: string) {
     </div>
     <p class="intro">{{ teacher.introduction }}</p>
     <div class="card-foot">
-      <span>{{ teacher.districts.join(' / ') }}</span>
+      <span>{{ formatRegions(teacher.districts) }}</span>
       <span>{{ TEACH_MODE_MAP[teacher.teachMode] }}</span>
       <span>★ {{ teacher.rating }} ({{ teacher.reviewCount }})</span>
     </div>

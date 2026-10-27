@@ -25,6 +25,5 @@ import RiskNotice from './RiskNotice.vue'
 
 .main-content {
   flex: 1;
-  padding: 20px 0 32px;
 }
 </style>

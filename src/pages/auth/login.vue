@@ -1,121 +1,810 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { apiLogin, apiSendCode } from '@/api'
-import { ADMIN_PHONE, MOCK_SMS_CODE } from '@/constants'
-import type { UserRole } from '@/types'
-import { errorMessage } from '@/utils'
+import { computed, onUnmounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { ElMessage } from "element-plus";
+import {
+  apiLogin,
+  apiLoginByPassword,
+  apiRegisterByPassword,
+  apiSendCode,
+} from "@/api";
+import { APP_NAME } from "@/constants";
+import type { UserRole } from "@/types";
+import { errorMessage } from "@/utils";
 
-const router = useRouter()
-const route = useRoute()
-const loading = ref(false)
-const sending = ref(false)
+type AuthMode = "code" | "password";
+type PasswordMode = "login" | "register";
+
+const router = useRouter();
+const route = useRoute();
+const loading = ref(false);
+const sending = ref(false);
+const authMode = ref<AuthMode>("code");
+const passwordMode = ref<PasswordMode>("login");
+const codeStep = ref<"phone" | "code">("phone");
+const agreed = ref(true);
+const countdown = ref(0);
+let timer: ReturnType<typeof setInterval> | null = null;
+
+const queryRole = route.query.role as string | undefined;
+const isAdminEntry = queryRole === "admin";
 
 const form = reactive({
-  phone: (route.query.role === 'admin' ? ADMIN_PHONE : '') as string,
-  code: '',
-  role: ((route.query.role as UserRole) || 'student') as UserRole,
-})
+  phone: "",
+  code: "",
+  password: "",
+  confirmPassword: "",
+  role: (queryRole === "teacher" ? "teacher" : "student") as UserRole,
+});
 
-async function sendCode() {
-  sending.value = true
-  try {
-    const res = await apiSendCode(form.phone)
-    ElMessage.success(res.message)
-  } catch (error: unknown) {
-    ElMessage.error(errorMessage(error, '发送失败'))
-  } finally {
-    sending.value = false
+const roles = [
+  { value: "student" as const, title: "我是学员", desc: "找老师、发需求" },
+  { value: "teacher" as const, title: "我是老师", desc: "入驻接单、收咨询" },
+];
+
+const phoneValid = computed(() => /^1\d{10}$/.test(form.phone));
+const codeValid = computed(() => /^\d{6}$/.test(form.code));
+const passwordValid = computed(
+  () => form.password.length >= 6 && form.password.length <= 32,
+);
+const confirmValid = computed(() => form.password === form.confirmPassword);
+const maskedPhone = computed(() => {
+  if (!phoneValid.value) return form.phone;
+  return `${form.phone.slice(0, 3)} **** ${form.phone.slice(7)}`;
+});
+const submitRole = computed<UserRole>(() =>
+  isAdminEntry ? "admin" : form.role,
+);
+const sendLabel = computed(() => {
+  if (sending.value) return "发送中";
+  if (countdown.value > 0) return `${countdown.value}s 后重发`;
+  return codeStep.value === "code" ? "重新发送" : "获取验证码";
+});
+const titleText = computed(() => {
+  if (authMode.value === "code") {
+    return codeStep.value === "phone" ? "验证码登录" : "输入验证码";
+  }
+  return passwordMode.value === "login" ? "账号密码登录" : "注册账号";
+});
+const descText = computed(() => {
+  if (authMode.value === "code") {
+    if (codeStep.value === "code") {
+      return `验证码已发送至 ${maskedPhone.value}`;
+    }
+    return "未注册手机号会自动创建账号";
+  }
+  if (passwordMode.value === "login") {
+    return "使用手机号和密码登录已有账号";
+  }
+  return "设置密码后，下次可直接账号密码登录";
+});
+
+watch(
+  () => form.phone,
+  () => {
+    if (codeStep.value === "code") {
+      codeStep.value = "phone";
+      form.code = "";
+    }
+  },
+);
+
+watch(authMode, () => {
+  codeStep.value = "phone";
+  form.code = "";
+  form.password = "";
+  form.confirmPassword = "";
+});
+
+function clearTimer() {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
   }
 }
 
-async function submit() {
-  loading.value = true
-  try {
-    const user = await apiLogin(form.phone, form.code, form.role)
-    ElMessage.success(`欢迎，${user.name}`)
-    const redirect = (route.query.redirect as string) || (user.role === 'admin' ? '/admin' : '/')
-    router.replace(redirect)
-  } catch (error: unknown) {
-    ElMessage.error(errorMessage(error, '登录失败'))
-  } finally {
-    loading.value = false
+function startCountdown(seconds = 60) {
+  clearTimer();
+  countdown.value = seconds;
+  timer = setInterval(() => {
+    countdown.value -= 1;
+    if (countdown.value <= 0) clearTimer();
+  }, 1000);
+}
+
+onUnmounted(clearTimer);
+
+function ensureAgreed() {
+  if (!agreed.value) {
+    ElMessage.warning("请先同意用户协议和隐私政策");
+    return false;
   }
+  return true;
+}
+
+async function afterLogin(user: { name: string; role: UserRole }) {
+  ElMessage.success(`欢迎，${user.name}`);
+  const redirect =
+    (route.query.redirect as string) ||
+    (user.role === "admin" ? "/admin" : "/");
+  router.replace(redirect);
+}
+
+async function sendCode() {
+  if (!phoneValid.value) {
+    ElMessage.warning("请输入正确的手机号");
+    return;
+  }
+  if (!ensureAgreed()) return;
+  if (countdown.value > 0 || sending.value) return;
+
+  sending.value = true;
+  try {
+    const res = await apiSendCode(form.phone);
+    ElMessage.success(res.message);
+    codeStep.value = "code";
+    startCountdown();
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, "发送失败"));
+  } finally {
+    sending.value = false;
+  }
+}
+
+function backToPhone() {
+  codeStep.value = "phone";
+  form.code = "";
+}
+
+async function submitCodeLogin() {
+  if (!phoneValid.value) {
+    ElMessage.warning("请输入正确的手机号");
+    return;
+  }
+  if (!codeValid.value) {
+    ElMessage.warning("请输入 6 位验证码");
+    return;
+  }
+  if (!ensureAgreed()) return;
+
+  loading.value = true;
+  try {
+    const user = await apiLogin(form.phone, form.code, submitRole.value);
+    await afterLogin(user);
+  } catch (error: unknown) {
+    ElMessage.error(errorMessage(error, "登录失败"));
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function submitPassword() {
+  if (!phoneValid.value) {
+    ElMessage.warning("请输入正确的手机号");
+    return;
+  }
+  if (!passwordValid.value) {
+    ElMessage.warning("密码长度需要 6 到 32 位");
+    return;
+  }
+  if (passwordMode.value === "register" && !confirmValid.value) {
+    ElMessage.warning("两次输入的密码不一致");
+    return;
+  }
+  if (!ensureAgreed()) return;
+
+  loading.value = true;
+  try {
+    const user =
+      passwordMode.value === "register"
+        ? await apiRegisterByPassword(
+            form.phone,
+            form.password,
+            submitRole.value,
+          )
+        : await apiLoginByPassword(form.phone, form.password, submitRole.value);
+    await afterLogin(user);
+  } catch (error: unknown) {
+    ElMessage.error(
+      errorMessage(
+        error,
+        passwordMode.value === "register" ? "注册失败" : "登录失败",
+      ),
+    );
+  } finally {
+    loading.value = false;
+  }
+}
+
+function onPrimarySubmit() {
+  if (authMode.value === "code") {
+    if (codeStep.value === "phone") sendCode();
+    else submitCodeLogin();
+    return;
+  }
+  submitPassword();
 }
 </script>
 
 <template>
-  <div class="page-container login-page">
-    <div class="panel">
-      <h1>登录 / 注册</h1>
-      <p class="desc">手机号即账号。未注册会自动创建。当前验证码固定为 {{ MOCK_SMS_CODE }}。</p>
+  <div class="login-page">
+    <div class="login-shell">
+      <aside class="login-aside">
+        <p class="eyebrow">{{ APP_NAME }}</p>
+        <h1>欢迎回来</h1>
+        <p class="aside-desc">
+          支持手机验证码登录，也可以用账号密码登录。学员找老师、老师接咨询，选好身份后继续。
+        </p>
+        <ul class="aside-points">
+          <li>验证码登录：未注册自动创建</li>
+          <li>账号密码：适合常用登录</li>
+          <li>平台只做信息撮合，不收取课时费</li>
+        </ul>
+      </aside>
 
-      <el-form label-width="80px" @submit.prevent="submit">
-        <el-form-item label="身份">
-          <el-radio-group v-model="form.role">
-            <el-radio value="student">学员</el-radio>
-            <el-radio value="teacher">老师</el-radio>
-            <el-radio value="admin">管理员</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="手机号">
-          <el-input v-model="form.phone" maxlength="11" placeholder="请输入手机号" />
-        </el-form-item>
-        <el-form-item label="验证码">
-          <div class="code-row">
-            <el-input v-model="form.code" maxlength="6" placeholder="验证码" />
-            <el-button :loading="sending" @click="sendCode">获取验证码</el-button>
-          </div>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="loading" style="width: 100%" @click="submit">
-            登录 / 注册
-          </el-button>
-        </el-form-item>
-      </el-form>
+      <section class="login-panel">
+        <div class="mode-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            :class="['mode-tab', { active: authMode === 'code' }]"
+            @click="authMode = 'code'"
+          >
+            验证码登录
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :class="['mode-tab', { active: authMode === 'password' }]"
+            @click="authMode = 'password'"
+          >
+            账号密码
+          </button>
+        </div>
 
-      <el-alert
-        type="info"
-        :closable="false"
-        show-icon
-        :title="`管理员手机号：${ADMIN_PHONE}，验证码：${MOCK_SMS_CODE}`"
-      />
+        <div class="panel-head">
+          <h2>{{ titleText }}</h2>
+          <p class="panel-desc">
+            {{ descText }}
+            <button
+              v-if="authMode === 'code' && codeStep === 'code'"
+              type="button"
+              class="text-btn"
+              @click="backToPhone"
+            >
+              修改
+            </button>
+          </p>
+        </div>
+
+        <div v-if="!isAdminEntry" class="role-grid">
+          <button
+            v-for="item in roles"
+            :key="item.value"
+            type="button"
+            :class="['role-card', { active: form.role === item.value }]"
+            @click="form.role = item.value"
+          >
+            <span class="role-title">{{ item.title }}</span>
+            <span class="role-desc">{{ item.desc }}</span>
+          </button>
+        </div>
+        <p v-else class="admin-tip">正在进入管理后台登录</p>
+
+        <form class="login-form" @submit.prevent="onPrimarySubmit">
+          <label
+            v-if="authMode === 'code' ? codeStep === 'phone' : true"
+            class="field"
+          >
+            <span class="field-label">手机号</span>
+            <input
+              v-model="form.phone"
+              class="field-input"
+              type="tel"
+              inputmode="numeric"
+              maxlength="11"
+              autocomplete="tel"
+              placeholder="请输入 11 位手机号"
+            />
+          </label>
+
+          <template v-if="authMode === 'code'">
+            <label v-if="codeStep === 'code'" class="field">
+              <span class="field-label">验证码</span>
+              <div class="code-row">
+                <input
+                  v-model="form.code"
+                  class="field-input"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="6"
+                  autocomplete="one-time-code"
+                  placeholder="请输入 6 位验证码"
+                />
+                <button
+                  type="button"
+                  class="ghost-btn"
+                  :disabled="sending || countdown > 0"
+                  @click="sendCode"
+                >
+                  {{ sendLabel }}
+                </button>
+              </div>
+            </label>
+          </template>
+
+          <template v-else>
+            <label class="field">
+              <span class="field-label">密码</span>
+              <input
+                v-model="form.password"
+                class="field-input"
+                type="password"
+                maxlength="32"
+                autocomplete="current-password"
+                placeholder="请输入 6-32 位密码"
+              />
+            </label>
+            <label v-if="passwordMode === 'register'" class="field">
+              <span class="field-label">确认密码</span>
+              <input
+                v-model="form.confirmPassword"
+                class="field-input"
+                type="password"
+                maxlength="32"
+                autocomplete="new-password"
+                placeholder="请再次输入密码"
+              />
+            </label>
+          </template>
+
+          <label class="agree">
+            <input v-model="agreed" type="checkbox" />
+            <span>
+              我已阅读并同意
+              <router-link to="/legal/agreement" target="_blank"
+                >《用户协议》</router-link
+              >
+              和
+              <router-link to="/legal/privacy" target="_blank"
+                >《隐私政策》</router-link
+              >
+            </span>
+          </label>
+
+          <button
+            v-if="authMode === 'code' && codeStep === 'phone'"
+            type="submit"
+            class="primary-btn"
+            :disabled="sending || !phoneValid"
+          >
+            {{ sending ? "发送中…" : "获取验证码" }}
+          </button>
+          <button
+            v-else-if="authMode === 'code'"
+            type="submit"
+            class="primary-btn"
+            :disabled="loading || !codeValid"
+          >
+            {{ loading ? "登录中…" : "登录 / 注册" }}
+          </button>
+          <button
+            v-else
+            type="submit"
+            class="primary-btn"
+            :disabled="
+              loading ||
+              !phoneValid ||
+              !passwordValid ||
+              (passwordMode === 'register' && !confirmValid)
+            "
+          >
+            {{
+              loading
+                ? passwordMode === "register"
+                  ? "注册中…"
+                  : "登录中…"
+                : passwordMode === "register"
+                  ? "注册并登录"
+                  : "登录"
+            }}
+          </button>
+        </form>
+
+        <div v-if="authMode === 'password'" class="switch-row">
+          <template v-if="passwordMode === 'login'">
+            <span>还没有账号？</span>
+            <button
+              type="button"
+              class="text-btn"
+              @click="passwordMode = 'register'"
+            >
+              去注册
+            </button>
+          </template>
+          <template v-else>
+            <span>已有账号？</span>
+            <button
+              type="button"
+              class="text-btn"
+              @click="passwordMode = 'login'"
+            >
+              去登录
+            </button>
+          </template>
+        </div>
+
+        <p class="footer-tip">
+          验证码 5
+          分钟内有效。仅用验证码登录的账号，需要先注册并设置密码后，才能用账号密码登录。
+        </p>
+      </section>
     </div>
   </div>
 </template>
 
 <style scoped lang="scss">
 .login-page {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - #{$header-height} - 120px);
   display: flex;
+  align-items: center;
   justify-content: center;
-  padding-top: 24px;
-}
+  padding: 32px 16px 48px;
+  background: #1b2a3d;
 
-.panel {
-  width: 100%;
-  max-width: 460px;
-  background: #fff;
-  border: 1px solid $color-border;
-  border-radius: $radius-lg;
-  padding: 28px 24px;
-
-  h1 {
-    margin: 0 0 8px;
-    font-size: 22px;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background: url("/images/login-tutor-bg.jpg") center / cover no-repeat;
   }
 }
 
-.desc {
-  margin: 0 0 20px;
+.login-shell {
+  width: min(920px, 100%);
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 22px 56px rgba(16, 32, 54, 0.28);
+  backdrop-filter: blur(14px);
+}
+
+.login-aside {
+  position: relative;
+  overflow: hidden;
+  padding: 40px 36px;
+  color: #fff;
+  background:
+    linear-gradient(165deg, rgb(68 45 18 / 40%), rgba(42, 127, 212, 0.62)),
+    url(/images/login-tutor-bg.jpg) center / cover no-repeat;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0;
+    height: 42%;
+    background: linear-gradient(180deg, transparent, rgba(12, 28, 48, 0.35));
+    pointer-events: none;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  opacity: 0.86;
+}
+
+.login-aside h1 {
+  margin: 0 0 14px;
+  font-size: 32px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.aside-desc {
+  margin: 0 0 28px;
+  font-size: 14px;
+  line-height: 1.7;
+  opacity: 0.92;
+}
+
+.aside-points {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+
+  li {
+    position: relative;
+    padding-left: 18px;
+    font-size: 13px;
+    line-height: 1.6;
+    opacity: 0.94;
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.55em;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: $color-accent;
+    }
+  }
+}
+
+.login-panel {
+  padding: 32px 28px 36px;
+  background: #fff;
+}
+
+.mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 20px;
+  padding: 4px;
+  border-radius: 14px;
+  background: #f3f6fb;
+}
+
+.mode-tab {
+  height: 40px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: $color-text-secondary;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &.active {
+    background: #fff;
+    color: $color-primary-dark;
+    box-shadow: 0 1px 4px rgba(31, 41, 55, 0.08);
+  }
+}
+
+.panel-head {
+  margin-bottom: 18px;
+
+  h2 {
+    margin: 0 0 8px;
+    font-size: 22px;
+    color: $color-text;
+  }
+}
+
+.panel-desc {
+  margin: 0;
   color: $color-text-secondary;
   font-size: 13px;
   line-height: 1.6;
 }
 
-.code-row {
+.text-btn {
+  margin-left: 4px;
+  border: 0;
+  background: transparent;
+  color: $color-primary;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.role-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.role-card {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  padding: 14px 14px 12px;
+  border: 1px solid $color-border;
+  border-radius: 14px;
+  background: #fafbfd;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: rgba(59, 158, 255, 0.45);
+  }
+
+  &.active {
+    border-color: $color-primary;
+    background: $color-primary-light;
+    box-shadow: inset 0 0 0 1px rgba(59, 158, 255, 0.25);
+  }
+}
+
+.role-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: $color-text;
+}
+
+.role-desc {
+  font-size: 12px;
+  color: $color-text-secondary;
+}
+
+.admin-tip {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: $color-accent-light;
+  color: #b35a1a;
+  font-size: 13px;
+}
+
+.login-form {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: grid;
   gap: 8px;
+}
+
+.field-label {
+  font-size: 13px;
+  color: $color-text-secondary;
+}
+
+.field-input {
   width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid $color-border;
+  border-radius: 12px;
+  background: #fff;
+  color: $color-text;
+  font-size: 15px;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:focus {
+    border-color: $color-primary;
+    box-shadow: 0 0 0 3px rgba(59, 158, 255, 0.16);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+}
+
+.code-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.ghost-btn,
+.primary-btn {
+  height: 46px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.ghost-btn {
+  min-width: 108px;
+  padding: 0 14px;
+  border: 1px solid rgba(59, 158, 255, 0.35);
+  background: $color-primary-light;
+  color: $color-primary-dark;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+}
+
+.primary-btn {
+  border: 0;
+  background: linear-gradient(135deg, $color-primary, $color-primary-dark);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(59, 158, 255, 0.28);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    box-shadow: none;
+  }
+}
+
+.agree {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: $color-text-secondary;
+  line-height: 1.6;
+
+  input {
+    margin-top: 3px;
+  }
+
+  a {
+    color: $color-primary;
+  }
+}
+
+.switch-row {
+  margin-top: 14px;
+  font-size: 13px;
+  color: $color-text-secondary;
+}
+
+.footer-tip {
+  margin: 16px 0 0;
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.5;
+}
+
+@media (max-width: $breakpoint-md) {
+  .login-page {
+    padding: 20px 12px 36px;
+    align-items: flex-start;
+  }
+
+  .login-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .login-aside {
+    padding: 28px 22px 24px;
+
+    h1 {
+      font-size: 26px;
+    }
+  }
+
+  .aside-points {
+    display: none;
+  }
+
+  .login-panel {
+    padding: 22px 16px 28px;
+  }
+
+  .panel-head h2 {
+    font-size: 20px;
+  }
 }
 </style>

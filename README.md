@@ -1,6 +1,6 @@
-# 合肥同城家教平台（MVP）
+# 同号家教（MVP）
 
-Vue3 + Vite + Element Plus + SCSS + TypeScript 前端。登录走 CloudBase Auth，业务接口走 HTTP API。
+Vue3 + Vite + Element Plus + SCSS + TypeScript 前端。支持全国省市区筛选，业务接口走 HTTP API。
 
 ## 技术栈
 
@@ -44,7 +44,7 @@ npm run preview
 src/
   api/           # 接口层（当前走 Store Mock，后续可换成 uni.request）
   components/    # 通用组件（layout / teacher）
-  constants/     # 科目、区县等常量
+  constants/     # 科目、品牌等常量
   mock/          # 示例老师、需求、评论数据
   pages/         # 页面（按业务拆分，接近 UniApp pages）
   router/        # 路由

@@ -31,8 +31,11 @@ async function logout() {
   <div class="admin-layout" :class="{ collapsed: appStore.sidebarCollapsed }">
     <aside class="sidebar">
       <div class="side-brand">
-        <span>{{ APP_NAME }}</span>
-        <small>管理后台</small>
+        <img class="brand-logo" src="/logo/logo.png" :alt="APP_NAME" />
+        <div class="brand-text">
+          <span>{{ APP_NAME }}</span>
+          <small>管理后台</small>
+        </div>
       </div>
       <el-menu
         :default-active="$route.path"
@@ -85,9 +88,24 @@ async function logout() {
 }
 
 .side-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 20px 16px;
   color: #fff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.brand-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+}
+
+.brand-text {
+  min-width: 0;
 
   span {
     display: block;
@@ -98,6 +116,10 @@ async function logout() {
   small {
     color: rgba(255, 255, 255, 0.55);
   }
+}
+
+.admin-layout.collapsed .brand-text {
+  display: none;
 }
 
 .admin-main {

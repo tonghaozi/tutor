@@ -6,8 +6,11 @@ import { APP_NAME } from '@/constants'
   <footer class="app-footer">
     <div class="page-container footer-inner">
       <div class="footer-brand">
-        <strong>{{ APP_NAME }}</strong>
-        <p>合肥同城信息撮合平台 · 主打吉他家教，可扩展文化课</p>
+        <div class="brand-row">
+          <img class="brand-logo" src="/logo/logo.png" :alt="APP_NAME" />
+          <strong>{{ APP_NAME }}</strong>
+        </div>
+        <p>全国家教信息撮合平台 · 支持省市区筛选，主打吉他家教</p>
       </div>
       <div class="footer-links">
         <router-link to="/legal/agreement">用户协议</router-link>
@@ -33,11 +36,23 @@ import { APP_NAME } from '@/constants'
   gap: 16px;
 }
 
-.footer-brand strong {
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.brand-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
   display: block;
+}
+
+.footer-brand strong {
   color: #fff;
   font-size: 16px;
-  margin-bottom: 8px;
 }
 
 .footer-brand p {

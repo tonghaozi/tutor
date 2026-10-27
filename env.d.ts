@@ -19,3 +19,15 @@ declare module '*.scss' {
   const content: Record<string, string>
   export default content
 }
+
+declare module 'element-china-area-data' {
+  export const regionData: Array<{
+    value: string | number
+    label: string
+    children?: Array<{
+      value: string | number
+      label: string
+      children?: Array<{ value: string | number; label: string }>
+    }>
+  }>
+}

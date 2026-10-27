@@ -5,6 +5,7 @@ import { apiCloseDemand, apiLoadDemands, apiRemoveDemand } from '@/api'
 import { useDemandStore } from '@/store'
 import { TEACH_MODE_MAP } from '@/constants'
 import { errorMessage, formatDate, maskPhone } from '@/utils'
+import { formatRegion } from '@/utils/region'
 
 const demandStore = useDemandStore()
 const list = computed(() => demandStore.list)
@@ -46,7 +47,9 @@ async function remove(id: string) {
     <h1 class="title">需求管理</h1>
     <el-table v-loading="loading" :data="list" stripe border>
       <el-table-column prop="subject" label="科目" width="90" />
-      <el-table-column prop="district" label="区域" width="100" />
+      <el-table-column label="地区" min-width="160">
+        <template #default="{ row }">{{ formatRegion(row.district) }}</template>
+      </el-table-column>
       <el-table-column label="预算" width="100">
         <template #default="{ row }">¥{{ row.budget }}</template>
       </el-table-column>

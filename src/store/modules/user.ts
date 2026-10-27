@@ -56,7 +56,29 @@ export const useUserStore = defineStore('user', {
     async loginByPhone(phone: string, code: string, role: UserRole = 'student'): Promise<UserInfo> {
       const result = await request<{ token: string; user: UserInfo }>('/auth/login', {
         method: 'POST',
-        data: { phone, code, role },
+        data: { method: 'code', phone, code, role },
+      })
+      setToken(result.token)
+      this.userInfo = result.user
+      this.sessionChecked = true
+      return result.user
+    },
+
+    async loginByPassword(phone: string, password: string, role: UserRole = 'student'): Promise<UserInfo> {
+      const result = await request<{ token: string; user: UserInfo }>('/auth/login', {
+        method: 'POST',
+        data: { method: 'password', phone, password, role },
+      })
+      setToken(result.token)
+      this.userInfo = result.user
+      this.sessionChecked = true
+      return result.user
+    },
+
+    async registerByPassword(phone: string, password: string, role: UserRole = 'student'): Promise<UserInfo> {
+      const result = await request<{ token: string; user: UserInfo }>('/auth/register', {
+        method: 'POST',
+        data: { phone, password, role },
       })
       setToken(result.token)
       this.userInfo = result.user

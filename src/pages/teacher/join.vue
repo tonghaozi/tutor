@@ -3,9 +3,10 @@ import { reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules, UploadUserFile } from 'element-plus'
 import { apiSubmitTeacherJoin } from '@/api'
-import { DISTRICTS, SUBJECTS, TEACH_MODE_OPTIONS } from '@/constants'
+import { SUBJECTS, TEACH_MODE_OPTIONS } from '@/constants'
+import RegionCascader from '@/components/common/RegionCascader.vue'
 import { useUserStore } from '@/store'
-import type { HefeiDistrict, Subject, TeachMode } from '@/types'
+import type { RegionPath, Subject, TeachMode } from '@/types'
 
 const userStore = useUserStore()
 const formRef = ref<FormInstance>()
@@ -16,7 +17,7 @@ const form = reactive({
   name: userStore.userInfo?.name || '',
   phone: userStore.userInfo?.phone || '',
   subjects: ['吉他'] as Subject[],
-  districts: ['蜀山区'] as HefeiDistrict[],
+  districts: [] as RegionPath[],
   price: 150,
   teachMode: 'both' as TeachMode,
   experience: '',
@@ -32,7 +33,7 @@ const rules: FormRules = {
     { pattern: /^1\d{10}$/, message: '手机号格式不正确', trigger: 'blur' },
   ],
   subjects: [{ type: 'array', required: true, message: '请选择擅长科目', trigger: 'change' }],
-  districts: [{ type: 'array', required: true, message: '请选择授课区域', trigger: 'change' }],
+  districts: [{ type: 'array', required: true, message: '请选择授课地区', trigger: 'change' }],
   price: [{ required: true, message: '请填写课时报价', trigger: 'blur' }],
   experience: [{ required: true, message: '请填写教学经历', trigger: 'blur' }],
   introduction: [{ required: true, message: '请填写自我介绍', trigger: 'blur' }],
@@ -104,10 +105,12 @@ async function submit() {
           <el-option v-for="s in SUBJECTS" :key="s" :label="s" :value="s" />
         </el-select>
       </el-form-item>
-      <el-form-item label="授课区域" prop="districts">
-        <el-select v-model="form.districts" multiple style="width: 100%">
-          <el-option v-for="d in DISTRICTS" :key="d" :label="d" :value="d" />
-        </el-select>
+      <el-form-item label="授课地区" prop="districts">
+        <RegionCascader
+          v-model="form.districts"
+          multiple
+          placeholder="可多选省市区，如：安徽省/合肥市/蜀山区"
+        />
       </el-form-item>
       <el-form-item label="课时报价" prop="price">
         <el-input-number v-model="form.price" :min="50" :max="2000" :step="10" />

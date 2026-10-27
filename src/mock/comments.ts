@@ -14,7 +14,7 @@ export const mockComments: Comment[] = [
     id: 'c2',
     teacherId: 't1',
     userName: '家长刘女士',
-    content: '孩子很喜欢上吉他课，节奏安排合理，推荐蜀山区上门。',
+    content: '孩子很喜欢上吉他课，节奏安排合理，推荐上门授课。',
     rating: 5,
     createdAt: '2026-02-20T14:00:00.000Z',
     visible: true,

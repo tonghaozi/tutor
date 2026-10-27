@@ -4,15 +4,17 @@ import { useRoute } from 'vue-router'
 import TeacherCard from '@/components/teacher/TeacherCard.vue'
 import TeacherFilter from '@/components/teacher/TeacherFilter.vue'
 import { apiGetTeachers } from '@/api'
+import { useAppStore } from '@/store'
 import type { Teacher, TeacherFilter as FilterType } from '@/types'
 
 const route = useRoute()
+const appStore = useAppStore()
 const list = ref<Teacher[]>([])
 const loading = ref(false)
 const filter = reactive<FilterType>({
   keyword: '',
   subject: '',
-  district: '',
+  district: appStore.regionPath,
   teachMode: '',
   priceMin: null,
   priceMax: null,
@@ -21,7 +23,10 @@ const filter = reactive<FilterType>({
 async function load(payload: FilterType = filter) {
   loading.value = true
   try {
-    list.value = await apiGetTeachers(payload)
+    list.value = await apiGetTeachers({
+      ...payload,
+      district: payload.district || appStore.regionPath,
+    })
   } finally {
     loading.value = false
   }
@@ -30,8 +35,13 @@ async function load(payload: FilterType = filter) {
 onMounted(() => {
   filter.keyword = (route.query.keyword as string) || ''
   filter.subject = (route.query.subject as any) || ''
-  filter.district = (route.query.district as any) || ''
   filter.teachMode = (route.query.teachMode as any) || ''
+  const queryDistrict = (route.query.district as string) || ''
+  if (queryDistrict) {
+    filter.district = queryDistrict
+  } else {
+    filter.district = appStore.regionPath
+  }
   load()
 })
 </script>
@@ -39,7 +49,9 @@ onMounted(() => {
 <template>
   <div class="page-container teachers-page">
     <h1 class="section-title">找老师</h1>
-    <p class="section-desc">多维度筛选合肥本地已审核老师，点击卡片查看详情并咨询预约。</p>
+    <p class="section-desc">
+      当前定位 {{ appStore.cityLabel }}，可在顶部切换城市，下方点选区县筛选已审核老师。
+    </p>
 
     <TeacherFilter v-model="filter" @search="load" />
 

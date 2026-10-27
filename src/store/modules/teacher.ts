@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type { Teacher, TeacherFilter } from '@/types'
+import { regionMatches } from '@/utils/region'
 
 interface TeacherState {
   list: Teacher[]
@@ -15,7 +16,7 @@ function matchTeacher(t: Teacher, filter: TeacherFilter) {
     if (!hit) return false
   }
   if (filter.subject && !t.subjects.includes(filter.subject)) return false
-  if (filter.district && !t.districts.includes(filter.district)) return false
+  if (filter.district && !regionMatches(t.districts, filter.district)) return false
   if (filter.teachMode && filter.teachMode !== 'both') {
     if (t.teachMode !== 'both' && t.teachMode !== filter.teachMode) return false
   }

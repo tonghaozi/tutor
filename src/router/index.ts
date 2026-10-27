@@ -119,7 +119,7 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAdmin && !userStore.isAdmin) {
     return { name: 'Login', query: { redirect: to.fullPath, role: 'admin' } }
   }
-  document.title = `${(to.meta.title as string) || '首页'} - 合肥同城家教`
+  document.title = `${(to.meta.title as string) || '首页'} - 同号家教`
   return true
 })
 

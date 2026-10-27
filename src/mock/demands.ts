@@ -4,7 +4,7 @@ export const mockDemands: Demand[] = [
   {
     id: 'd1',
     subject: '吉他',
-    district: '蜀山区',
+    district: '安徽省/合肥市/蜀山区',
     budget: 160,
     schedule: '周六下午或周日晚上',
     teachMode: 'offline',
@@ -16,7 +16,7 @@ export const mockDemands: Demand[] = [
   {
     id: 'd2',
     subject: '吉他',
-    district: '包河区',
+    district: '上海市/上海市/浦东新区',
     budget: 180,
     schedule: '工作日晚上 19:30 后',
     teachMode: 'both',
@@ -28,7 +28,7 @@ export const mockDemands: Demand[] = [
   {
     id: 'd3',
     subject: '钢琴',
-    district: '庐阳区',
+    district: '北京市/北京市/海淀区',
     budget: 200,
     schedule: '周末上午',
     teachMode: 'offline',
@@ -40,7 +40,7 @@ export const mockDemands: Demand[] = [
   {
     id: 'd4',
     subject: '文化课',
-    district: '瑶海区',
+    district: '广东省/深圳市/南山区',
     budget: 120,
     schedule: '周三、周五放学后',
     teachMode: 'offline',
@@ -52,7 +52,7 @@ export const mockDemands: Demand[] = [
   {
     id: 'd5',
     subject: '吉他',
-    district: '肥西县',
+    district: '浙江省/杭州市/西湖区',
     budget: 140,
     schedule: '线上随时可约',
     teachMode: 'online',

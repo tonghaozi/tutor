@@ -2,12 +2,16 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import TeacherCard from '@/components/teacher/TeacherCard.vue'
+import DistrictBar from '@/components/layout/DistrictBar.vue'
 import { apiGetDemands, apiGetHotTeachers } from '@/api'
-import { DISTRICTS, SUBJECTS, TEACH_MODE_MAP } from '@/constants'
+import { APP_NAME, SUBJECTS, TEACH_MODE_MAP } from '@/constants'
+import { useAppStore } from '@/store'
 import { formatDate, maskPhone } from '@/utils'
+import { formatRegion } from '@/utils/region'
 import type { Demand, Teacher, TeacherFilter } from '@/types'
 
 const router = useRouter()
+const appStore = useAppStore()
 const hotTeachers = ref<Teacher[]>([])
 const demands = ref<Demand[]>([])
 const loading = ref(false)
@@ -15,7 +19,6 @@ const loading = ref(false)
 const quick = reactive<TeacherFilter>({
   keyword: '',
   subject: '',
-  district: '',
   teachMode: '',
 })
 
@@ -43,7 +46,7 @@ function searchGo() {
     query: {
       keyword: quick.keyword || undefined,
       subject: quick.subject || undefined,
-      district: quick.district || undefined,
+      district: appStore.regionPath || undefined,
       teachMode: quick.teachMode || undefined,
     },
   })
@@ -59,11 +62,6 @@ function setMode(m: 'offline' | 'online') {
   searchGo()
 }
 
-function setDistrict(d: string) {
-  quick.district = quick.district === d ? '' : (d as any)
-  searchGo()
-}
-
 onMounted(load)
 </script>
 
@@ -71,17 +69,17 @@ onMounted(load)
   <div class="home-page">
     <section class="hero">
       <div class="page-container hero-inner">
-        <p class="eyebrow">合肥同城 · 信息撮合</p>
-        <h1>找靠谱吉他家教，从同城开始</h1>
+        <p class="eyebrow">{{ APP_NAME }} · {{ appStore.cityLabel }}</p>
+        <h1>找靠谱家教，从本地开始</h1>
         <p class="hero-desc">
-          主打吉他家教，同步覆盖钢琴与文化课。连接学员与老师，平台不收取课时费、不担保教学质量。
+          主打吉他家教，同步覆盖钢琴与文化课。顶部切换城市，在方式下方点选区县，连接附近学员与老师。平台不收取课时费、不担保教学质量。
         </p>
         <div class="search-box">
           <el-input
             v-model="quick.keyword"
             size="large"
             clearable
-            placeholder="搜索老师姓名、科目，如：吉他 蜀山区"
+            placeholder="搜索老师姓名、科目，如：吉他"
             @keyup.enter="searchGo"
           >
             <template #append>
@@ -114,18 +112,7 @@ onMounted(load)
               {{ m.label }}
             </button>
           </div>
-          <div class="filter-row districts">
-            <span class="label">区域</span>
-            <button
-              v-for="d in DISTRICTS"
-              :key="d"
-              type="button"
-              :class="['chip', { active: quick.district === d }]"
-              @click="setDistrict(d)"
-            >
-              {{ d }}
-            </button>
-          </div>
+          <DistrictBar />
         </div>
       </div>
     </section>
@@ -149,7 +136,7 @@ onMounted(load)
         <article v-for="d in demands.slice(0, 5)" :key="d.id" class="demand-item">
           <div class="demand-main">
             <el-tag size="small" type="warning" effect="plain">{{ d.subject }}</el-tag>
-            <strong>{{ d.district }} · {{ TEACH_MODE_MAP[d.teachMode] }}</strong>
+            <strong>{{ formatRegion(d.district) }} · {{ TEACH_MODE_MAP[d.teachMode] }}</strong>
             <span class="budget">预算 ¥{{ d.budget }}/课时</span>
           </div>
           <p>{{ d.remark }}</p>
@@ -166,7 +153,7 @@ onMounted(load)
     <section class="page-container section about">
       <h2 class="section-title">平台简介</h2>
       <p class="section-desc">
-        合肥同城家教是本地信息撮合平台：学员可以浏览已审核老师、发布求聘需求；老师可提交入驻资料，经管理员审核通过后对外展示。平台不提供支付功能，课时费用由双方自行约定与结算。当前开放科目：{{
+        {{ APP_NAME }}是全国性家教信息撮合平台：学员可按城市与区县浏览已审核老师、发布求聘需求；老师可提交入驻资料，经管理员审核通过后对外展示。平台不提供支付功能，课时费用由双方自行约定与结算。当前开放科目：{{
           SUBJECTS.join('、')
         }}。
       </p>
@@ -185,7 +172,6 @@ onMounted(load)
     radial-gradient(circle at 88% 10%, rgba(255, 138, 61, 0.16), transparent 36%),
     linear-gradient(180deg, #f0f7ff 0%, $color-bg 100%);
   padding: 36px 0 28px;
-  margin-top: -20px;
 }
 
 .hero-inner {
@@ -318,14 +304,11 @@ h1 {
 }
 
 .about {
-  background: #fff;
-  border: 1px solid $color-border;
-  border-radius: $radius-lg;
-  padding: 24px;
-  margin-top: 28px;
+  padding-bottom: 40px;
 }
 
 .about-actions {
+  margin-top: 16px;
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
@@ -333,11 +316,7 @@ h1 {
 
 @media (max-width: $breakpoint-md) {
   h1 {
-    font-size: 24px;
-  }
-
-  .hero {
-    padding-top: 24px;
+    font-size: 26px;
   }
 }
 </style>

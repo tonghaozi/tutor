@@ -6,6 +6,7 @@ import ConsultDialog from '@/components/teacher/ConsultDialog.vue'
 import { apiGetComments, apiGetTeacherDetail } from '@/api'
 import { TEACH_MODE_MAP } from '@/constants'
 import { formatDate } from '@/utils'
+import { formatRegions } from '@/utils/region'
 import type { Comment, Teacher } from '@/types'
 
 const route = useRoute()
@@ -47,7 +48,7 @@ onMounted(load)
             <el-tag type="warning" effect="plain">{{ TEACH_MODE_MAP[teacher.teachMode] }}</el-tag>
           </div>
           <p class="price">课时价 <em>¥{{ teacher.price }}</em> / 课时</p>
-          <p class="area">授课区域：{{ teacher.districts.join('、') }}</p>
+          <p class="area">授课地区：{{ formatRegions(teacher.districts) }}</p>
           <p class="rating">评分 ★ {{ teacher.rating }} · {{ teacher.reviewCount }} 条评价</p>
           <el-button type="primary" size="large" @click="consultOpen = true">咨询预约</el-button>
         </div>

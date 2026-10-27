@@ -8,16 +8,8 @@ export type TeachMode = 'offline' | 'online' | 'both'
 
 export type Subject = '吉他' | '钢琴' | '文化课' | '英语' | '数学' | '语文'
 
-export type HefeiDistrict =
-  | '瑶海区'
-  | '庐阳区'
-  | '蜀山区'
-  | '包河区'
-  | '长丰县'
-  | '肥东县'
-  | '肥西县'
-  | '庐江县'
-  | '巢湖市'
+/** 省市区路径，如「安徽省/合肥市/蜀山区」 */
+export type RegionPath = string
 
 export interface UserInfo {
   id: string
@@ -35,7 +27,7 @@ export interface Teacher {
   phone: string
   avatar: string
   subjects: Subject[]
-  districts: HefeiDistrict[]
+  districts: RegionPath[]
   price: number
   teachMode: TeachMode
   experience: string
@@ -54,7 +46,7 @@ export interface Demand {
   id: string
   userId?: string
   subject: Subject
-  district: HefeiDistrict
+  district: RegionPath
   budget: number
   schedule: string
   teachMode: TeachMode
@@ -77,7 +69,7 @@ export interface Comment {
 export interface TeacherFilter {
   keyword?: string
   subject?: Subject | ''
-  district?: HefeiDistrict | ''
+  district?: RegionPath | ''
   teachMode?: TeachMode | ''
   priceMin?: number | null
   priceMax?: number | null

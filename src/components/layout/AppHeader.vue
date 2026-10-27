@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import CityPicker from './CityPicker.vue'
 import { useUserStore } from '@/store'
 import { APP_NAME } from '@/constants'
 import { errorMessage } from '@/utils'
@@ -45,9 +46,11 @@ async function logout() {
   <header class="app-header">
     <div class="page-container header-inner">
       <div class="brand" @click="go('/')">
-        <span class="brand-mark">同</span>
+        <img class="brand-logo" src="/logo/logo.png" :alt="APP_NAME" />
         <span class="brand-name">{{ APP_NAME }}</span>
       </div>
+
+      <CityPicker />
 
       <nav class="nav-desktop">
         <a
@@ -121,27 +124,25 @@ async function logout() {
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
   flex-shrink: 0;
 }
 
-.brand-mark {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, $color-primary, #5eb0ff);
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
+.brand-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
 }
 
 .brand-name {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
+  letter-spacing: 0.01em;
   color: $color-text;
+  line-height: 1.2;
 }
 
 .nav-desktop {
@@ -223,8 +224,13 @@ async function logout() {
     display: flex;
   }
 
+  .brand-logo {
+    width: 40px;
+    height: 40px;
+  }
+
   .brand-name {
-    font-size: 14px;
+    font-size: 15px;
   }
 }
 </style>
