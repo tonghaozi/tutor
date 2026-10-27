@@ -4,7 +4,27 @@ export const APP_NAME = '同号音乐家教'
 
 export const APP_SLOGAN = '全国音乐家教信息撮合'
 
-export const SUBJECTS: Subject[] = ['吉他', '钢琴', '声乐', '小提琴', '古筝', '架子鼓']
+export const SUBJECTS: Subject[] = [
+  '吉他',
+  '尤克里里',
+  '钢琴',
+  '电子琴',
+  '声乐',
+  '小提琴',
+  '大提琴',
+  '古筝',
+  '二胡',
+  '琵琶',
+  '笛子',
+  '萨克斯',
+  '长笛',
+  '单簧管',
+  '架子鼓',
+  '非洲鼓',
+  '口琴',
+  '音乐理论',
+  '视唱练耳',
+]
 
 export const TEACH_MODE_OPTIONS: { label: string; value: TeachMode }[] = [
   { label: '上门', value: 'offline' },

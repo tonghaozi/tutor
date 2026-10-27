@@ -6,7 +6,26 @@ export type AuditStatus = 'pending' | 'approved' | 'rejected'
 
 export type TeachMode = 'offline' | 'online' | 'both'
 
-export type Subject = '吉他' | '钢琴' | '声乐' | '小提琴' | '古筝' | '架子鼓'
+export type Subject =
+  | '吉他'
+  | '尤克里里'
+  | '钢琴'
+  | '电子琴'
+  | '声乐'
+  | '小提琴'
+  | '大提琴'
+  | '古筝'
+  | '二胡'
+  | '琵琶'
+  | '笛子'
+  | '萨克斯'
+  | '长笛'
+  | '单簧管'
+  | '架子鼓'
+  | '非洲鼓'
+  | '口琴'
+  | '音乐理论'
+  | '视唱练耳'
 
 /** 省市区路径，如「安徽省/合肥市/蜀山区」 */
 export type RegionPath = string
