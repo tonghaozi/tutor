@@ -41,7 +41,7 @@ export const mockComments: Comment[] = [
     id: 'c5',
     teacherId: 't4',
     userName: '家长陈先生',
-    content: '吉他和文化课一起辅导，对孩子帮助很大。',
+    content: '吉他和声乐一起辅导，孩子进步很明显。',
     rating: 5,
     createdAt: '2026-03-08T11:00:00.000Z',
     visible: true,

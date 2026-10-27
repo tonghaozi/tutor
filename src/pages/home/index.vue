@@ -22,7 +22,7 @@ const quick = reactive<TeacherFilter>({
   teachMode: '',
 })
 
-const subjectQuick = ['吉他', '钢琴', '文化课'] as const
+const subjectQuick = ['吉他', '钢琴', '声乐'] as const
 const modeQuick = [
   { label: '上门', value: 'offline' as const },
   { label: '线上', value: 'online' as const },
@@ -72,7 +72,7 @@ onMounted(load)
         <p class="eyebrow">{{ APP_NAME }} · {{ appStore.cityLabel }}</p>
         <h1>找靠谱家教，从本地开始</h1>
         <p class="hero-desc">
-          主打吉他家教，同步覆盖钢琴与文化课。顶部切换城市，在方式下方点选区县，连接附近学员与老师。平台不收取课时费、不担保教学质量。
+          主打吉他家教，同步覆盖钢琴、声乐等音乐科目。顶部切换城市，在方式下方点选区县，连接附近学员与老师。平台不收取课时费、不担保教学质量。
         </p>
         <div class="search-box">
           <el-input

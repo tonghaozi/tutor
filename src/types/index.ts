@@ -6,7 +6,7 @@ export type AuditStatus = 'pending' | 'approved' | 'rejected'
 
 export type TeachMode = 'offline' | 'online' | 'both'
 
-export type Subject = '吉他' | '钢琴' | '文化课' | '英语' | '数学' | '语文'
+export type Subject = '吉他' | '钢琴' | '声乐' | '小提琴' | '古筝' | '架子鼓'
 
 /** 省市区路径，如「安徽省/合肥市/蜀山区」 */
 export type RegionPath = string
