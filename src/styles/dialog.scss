@@ -1,0 +1,166 @@
+@use './variables.scss' as *;
+
+/** 参考 web_logistics_operate 弹窗视觉，适配 Element Plus */
+.th-dialog.el-dialog {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #fff;
+  background: linear-gradient(180deg, #edf2ff 0%, #ffffff 14%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+
+  .el-dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 54px;
+    min-height: 54px;
+    margin-right: 0;
+    padding: 0 20px 0 24px;
+  }
+
+  .el-dialog__title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+    color: #292d36;
+  }
+
+  .el-dialog__headerbtn {
+    top: 15px;
+    right: 18px;
+    width: 24px;
+    height: 24px;
+
+    .el-dialog__close {
+      color: #99a0ad;
+      font-size: 18px;
+
+      &:hover {
+        color: $color-primary;
+      }
+    }
+  }
+
+  .el-dialog__body {
+    padding: 8px 32px 0;
+    color: #424957;
+    max-height: min(62vh, 640px);
+    overflow: auto;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      border-radius: 4px;
+      background: rgba(153, 160, 173, 0.5);
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: rgba(153, 160, 173, 0.9);
+    }
+  }
+
+  .el-dialog__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 24px 16px;
+
+    .el-button {
+      min-width: 74px;
+      border-radius: 8px;
+    }
+
+    .el-button--default:hover {
+      border-color: #99b4ff;
+      color: $color-primary;
+    }
+  }
+}
+
+.th-dialog-form {
+  .form-title {
+    position: relative;
+    margin: 4px 0 12px;
+    padding: 8px 0 8px 13px;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+    color: #292d36;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 12px;
+      width: 3px;
+      height: 16px;
+      border-radius: 2px;
+      background: $color-primary;
+    }
+
+    span {
+      margin-left: 10px;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 18px;
+      color: #7b8496;
+    }
+  }
+
+  .form-tips {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 18px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #edf2ff;
+
+    .dot {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      margin-top: 2px;
+      border-radius: 50%;
+      background: $color-primary;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 16px;
+      text-align: center;
+    }
+
+    p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 20px;
+      color: #292d36;
+    }
+  }
+
+  .el-form-item {
+    margin-bottom: 18px;
+  }
+
+  .el-form-item__label {
+    color: #424957;
+    font-weight: 500;
+  }
+
+  .el-input__wrapper,
+  .el-textarea__inner,
+  .el-select__wrapper {
+    border-radius: 8px;
+  }
+
+  .el-input-number {
+    width: 180px;
+  }
+}

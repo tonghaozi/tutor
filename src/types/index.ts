@@ -102,6 +102,15 @@ export interface TeacherFilter {
   priceMax?: number | null
 }
 
+export interface DemandFilter {
+  keyword?: string
+  subject?: Subject | ''
+  district?: RegionPath | ''
+  teachMode?: TeachMode | ''
+  budgetMin?: number | null
+  budgetMax?: number | null
+}
+
 export interface ConsultForm {
   teacherId: string
   teacherName: string

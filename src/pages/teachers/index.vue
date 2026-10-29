@@ -42,6 +42,10 @@ onMounted(() => {
   } else {
     filter.district = appStore.regionPath
   }
+  const min = Number(route.query.priceMin)
+  const max = Number(route.query.priceMax)
+  filter.priceMin = Number.isFinite(min) ? min : null
+  filter.priceMax = Number.isFinite(max) ? max : null
   load()
 })
 </script>

@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import ChangePasswordDialog from '@/components/auth/ChangePasswordDialog.vue'
+import StudentDemandDialog from '@/components/demand/StudentDemandDialog.vue'
+import TeacherJoinDialog from '@/components/teacher/TeacherJoinDialog.vue'
 import CityPicker from './CityPicker.vue'
 import { useUserStore } from '@/store'
 import { APP_NAME } from '@/constants'
@@ -13,13 +15,18 @@ const router = useRouter()
 const userStore = useUserStore()
 const menuOpen = ref(false)
 const passwordDialogVisible = ref(false)
+const studentDemandVisible = ref(false)
+const teacherJoinVisible = ref(false)
 
-const navItems = [
-  { path: '/', label: '首页' },
-  { path: '/teachers', label: '找老师' },
-  { path: '/demand/publish', label: '学员求聘' },
-  { path: '/teacher/join', label: '老师入驻' },
-]
+const navItems = computed(() => {
+  const role = userStore.userInfo?.role
+  const items = [
+    { path: '/', label: '首页' },
+    { path: '/teachers', label: '找老师', hideFor: 'teacher' as const },
+    { path: '/students', label: '找学生', hideFor: 'student' as const },
+  ]
+  return items.filter((item) => !('hideFor' in item && item.hideFor === role))
+})
 
 const isActive = (path: string) => {
   if (path === '/') return route.path === '/'
@@ -46,6 +53,33 @@ function goProfile() {
   router.push('/profile')
 }
 
+function onUserCommand(command: string) {
+  if (command === 'profile') goProfile()
+  else if (command === 'admin') go('/admin')
+  else if (command === 'password') openChangePassword()
+  else if (command === 'logout') logout()
+}
+
+function onPublishClick() {
+  menuOpen.value = false
+  if (!userStore.isLogin) {
+    ElMessage.warning('请先登录后再发布需求')
+    router.push({ path: '/auth/login', query: { redirect: route.fullPath } })
+    return
+  }
+  const role = userStore.userInfo?.role
+  if (role === 'teacher') {
+    teacherJoinVisible.value = true
+    return
+  }
+  if (role === 'student') {
+    studentDemandVisible.value = true
+    return
+  }
+  // 管理员默认打开学生求学表单
+  studentDemandVisible.value = true
+}
+
 async function logout() {
   try {
     await userStore.logout()
@@ -58,14 +92,15 @@ async function logout() {
 </script>
 
 <template>
-  <header class="app-header">
+  <header class="app-header" :class="{ 'on-home': route.path === '/' }">
     <div class="page-container header-inner">
       <div class="brand" @click="go('/')">
         <img class="brand-logo" src="/logo/logo.png" :alt="APP_NAME" />
-        <span class="brand-name">{{ APP_NAME }}</span>
+        <span class="brand-text">
+          <span class="brand-name">{{ APP_NAME }}</span>
+          <span class="brand-en">NATIONWIDE MUSIC TUTORING</span>
+        </span>
       </div>
-
-      <CityPicker />
 
       <nav class="nav-desktop">
         <a
@@ -79,34 +114,45 @@ async function logout() {
       </nav>
 
       <div class="header-actions">
+        <div class="action-utils">
+          <CityPicker />
+        </div>
+
+        <button class="cta-btn" type="button" @click="onPublishClick">
+          <img src="/images/home/plus.svg" width="16" height="16" alt="" />
+          发布需求
+        </button>
+
+        <i class="action-split" aria-hidden="true" />
+
         <template v-if="userStore.isLogin">
-          <div class="user-area">
-            <button class="avatar-btn" type="button" title="个人中心" @click="goProfile">
+          <el-dropdown trigger="click" @command="onUserCommand">
+            <button type="button" class="user-chip">
               <img
                 class="user-avatar"
                 :src="avatarUrl"
                 alt="头像"
                 @error="($event.target as HTMLImageElement).src = resolveAvatar(undefined, userStore.userInfo?.gender)"
               />
-            </button>
-            <el-dropdown>
               <span class="user-entry">
                 {{ displayName }}
                 <el-tag v-if="userStore.isAdmin" size="small" type="warning" effect="plain">管理</el-tag>
               </span>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item v-if="userStore.isAdmin" @click="go('/admin')">
-                    管理后台
-                  </el-dropdown-item>
-                  <el-dropdown-item @click="openChangePassword">修改密码</el-dropdown-item>
-                  <el-dropdown-item divided @click="logout">退出登录</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
+              <span class="user-caret" />
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+                <el-dropdown-item v-if="userStore.isAdmin" command="admin">管理后台</el-dropdown-item>
+                <el-dropdown-item command="password">修改密码</el-dropdown-item>
+                <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
-        <el-button v-else type="primary" round @click="go('/auth/login')">登录/注册</el-button>
+        <template v-else>
+          <button class="login-link" type="button" @click="go('/auth/login')">登录 / 注册</button>
+        </template>
 
         <button class="menu-btn" type="button" aria-label="菜单" @click="menuOpen = !menuOpen">
           <span /><span /><span />
@@ -123,6 +169,7 @@ async function logout() {
       >
         {{ item.label }}
       </a>
+      <a class="nav-link" @click.prevent="onPublishClick">发布需求</a>
       <a v-if="userStore.isAdmin" class="nav-link" @click.prevent="go('/admin')">管理后台</a>
       <a v-if="!userStore.isLogin" class="nav-link" @click.prevent="go('/auth/login')">登录/注册</a>
       <template v-else>
@@ -133,22 +180,28 @@ async function logout() {
     </div>
 
     <ChangePasswordDialog v-model="passwordDialogVisible" />
+    <StudentDemandDialog v-model="studentDemandVisible" />
+    <TeacherJoinDialog v-model="teacherJoinVisible" />
   </header>
 </template>
 
 <style scoped lang="scss">
 .app-header {
   z-index: 100;
-  background: rgba(255, 255, 255, 0.96);
-  border-bottom: 1px solid $color-border;
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.91);
+  border-bottom: 1px solid rgba(230, 236, 245, 0.8);
+
+  &.on-home {
+    background: #f8fbff;
+    border-bottom-color: transparent;
+  }
 }
 
 .header-inner {
-  height: $header-height;
+  height: 78px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 24px;
 }
 
 .brand {
@@ -160,80 +213,172 @@ async function logout() {
 }
 
 .brand-logo {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
-  flex-shrink: 0;
   display: block;
 }
 
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .brand-name {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: $color-text;
+  font-size: 18px;
+  font-weight: 800;
+  color: #13233b;
   line-height: 1.2;
+}
+
+.brand-en {
+  color: #718096;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .nav-desktop {
   display: flex;
-  gap: 8px;
-  flex: 1;
-  margin-left: 24px;
+  align-items: center;
+  gap: 28px;
+  margin-left: 8px;
 }
 
 .nav-link {
-  padding: 8px 12px;
-  border-radius: $radius-sm;
-  color: $color-text-secondary;
+  position: relative;
+  color: #33445d;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.2s;
+  font-weight: 500;
+  line-height: 22px;
+  padding: 6px 0;
 
-  &:hover,
   &.active {
-    color: $color-primary;
-    background: $color-primary-light;
+    color: #2878ff;
+    font-weight: 700;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -2px;
+      width: 16px;
+      height: 3px;
+      border-radius: 99px;
+      background: #2878ff;
+      transform: translateX(-50%);
+    }
+  }
+
+  &:hover {
+    color: #2878ff;
   }
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   margin-left: auto;
 }
 
-.user-area {
+.action-utils {
+  display: inline-flex;
+  align-items: center;
+}
+
+.action-split {
+  width: 1px;
+  height: 20px;
+  background: #e6ecf5;
+  flex-shrink: 0;
+}
+
+.login-link,
+.cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.login-link {
+  border: 1px solid #e6ecf5;
+  background: #fff;
+  color: #1658d7;
+
+  &:hover {
+    border-color: #99b4ff;
+    color: #2878ff;
+  }
+}
+
+.cta-btn {
+  border: 0;
+  background: #2878ff;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(40, 120, 255, 0.22);
+
+  &:hover {
+    background: #1f6aef;
+  }
+}
+
+.user-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-}
-
-.avatar-btn {
-  padding: 0;
-  border: none;
+  height: 40px;
+  padding: 0 10px 0 4px;
+  border: 0;
+  border-radius: 999px;
   background: transparent;
   cursor: pointer;
-  line-height: 0;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(40, 120, 255, 0.06);
+  }
 }
 
 .user-avatar {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
   display: block;
   background: #f3f5f8;
+  border: 1px solid #e6ecf5;
 }
 
 .user-entry {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  cursor: pointer;
-  color: $color-text;
+  color: #33445d;
   font-size: 14px;
+  font-weight: 600;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid #c0c4cc;
 }
 
 .menu-btn {
@@ -265,7 +410,13 @@ async function logout() {
 }
 
 @media (max-width: $breakpoint-md) {
-  .nav-desktop {
+  .nav-desktop,
+  .login-link,
+  .cta-btn,
+  .action-split,
+  .user-entry,
+  .user-caret,
+  .brand-en {
     display: none;
   }
 
@@ -277,13 +428,12 @@ async function logout() {
     display: flex;
   }
 
-  .brand-logo {
-    width: 40px;
-    height: 40px;
+  .brand-name {
+    font-size: 16px;
   }
 
-  .brand-name {
-    font-size: 15px;
+  .user-chip {
+    padding: 0;
   }
 }
 </style>

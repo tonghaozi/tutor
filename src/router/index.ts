@@ -25,10 +25,22 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '老师详情' },
       },
       {
+        path: 'students',
+        name: 'Students',
+        component: () => import('@/pages/students/index.vue'),
+        meta: { title: '找学生' },
+      },
+      {
+        path: 'students/:id',
+        name: 'StudentDetail',
+        component: () => import('@/pages/students/detail.vue'),
+        meta: { title: '学员需求详情' },
+      },
+      {
         path: 'demand/publish',
         name: 'DemandPublish',
         component: () => import('@/pages/demand/publish.vue'),
-        meta: { title: '学员求聘' },
+        meta: { title: '发布需求' },
       },
       {
         path: 'teacher/join',

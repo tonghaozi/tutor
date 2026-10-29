@@ -10,11 +10,9 @@ import RiskNotice from './RiskNotice.vue'
     <AppHeader class="layout-header" />
     <main class="main-content">
       <RouterView />
-    </main>
-    <div class="layout-bottom">
       <RiskNotice />
       <AppFooter />
-    </div>
+    </main>
   </div>
 </template>
 
@@ -36,9 +34,5 @@ import RiskNotice from './RiskNotice.vue'
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-}
-
-.layout-bottom {
-  flex-shrink: 0;
 }
 </style>

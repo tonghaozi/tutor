@@ -8,6 +8,7 @@ import type {
   Comment,
   ConsultForm,
   Demand,
+  DemandFilter,
   Teacher,
   TeacherFilter,
   UserGender,
@@ -109,8 +110,24 @@ export async function apiAuditTeacher(id: string, status: AuditStatus, reason = 
   return teacher
 }
 
-export async function apiGetDemands() {
-  return request<Demand[]>('/demands')
+function demandQuery(filter: DemandFilter = {}) {
+  const params = new URLSearchParams()
+  if (filter.keyword) params.set('keyword', filter.keyword)
+  if (filter.subject) params.set('subject', filter.subject)
+  if (filter.district) params.set('district', filter.district)
+  if (filter.teachMode) params.set('teachMode', filter.teachMode)
+  if (filter.budgetMin != null) params.set('budgetMin', String(filter.budgetMin))
+  if (filter.budgetMax != null) params.set('budgetMax', String(filter.budgetMax))
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
+
+export async function apiGetDemands(filter: DemandFilter = {}) {
+  return request<Demand[]>(`/demands${demandQuery(filter)}`)
+}
+
+export async function apiGetDemandDetail(id: string) {
+  return request<Demand>(`/demands/${encodeURIComponent(id)}`)
 }
 
 export async function apiLoadDemands() {

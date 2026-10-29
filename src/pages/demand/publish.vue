@@ -56,8 +56,8 @@ async function submit() {
 
 <template>
   <div class="page-container form-page">
-    <h1 class="section-title">学员求聘</h1>
-    <p class="section-desc">发布你的家教需求，老师可在首页看到最新求聘信息。</p>
+    <h1 class="section-title">发布需求</h1>
+    <p class="section-desc">发布你的家教需求，老师可在「找学生」中看到并联系你。</p>
 
     <el-form ref="formRef" :model="form" :rules="rules" label-width="96px" class="panel">
       <el-form-item label="科目" prop="subject">
