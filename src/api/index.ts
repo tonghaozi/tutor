@@ -9,6 +9,7 @@ import type {
   ConsultForm,
   Demand,
   DemandFilter,
+  PlatformMeta,
   Teacher,
   TeacherFilter,
   UserGender,
@@ -66,6 +67,7 @@ function teacherQuery(filter: TeacherFilter) {
   const params = new URLSearchParams()
   if (filter.keyword) params.set('keyword', filter.keyword)
   if (filter.subject) params.set('subject', filter.subject)
+  if (filter.stage) params.set('stage', filter.stage)
   if (filter.district) params.set('district', filter.district)
   if (filter.teachMode) params.set('teachMode', filter.teachMode)
   if (filter.priceMin != null) params.set('priceMin', String(filter.priceMin))
@@ -101,6 +103,10 @@ export async function apiSubmitTeacherJoin(
   })
 }
 
+export async function apiGetMeta() {
+  return request<PlatformMeta>('/meta')
+}
+
 export async function apiAuditTeacher(id: string, status: AuditStatus, reason = '') {
   const teacher = await request<Teacher>(`/teachers/${encodeURIComponent(id)}/audit`, {
     method: 'POST',
@@ -114,6 +120,7 @@ function demandQuery(filter: DemandFilter = {}) {
   const params = new URLSearchParams()
   if (filter.keyword) params.set('keyword', filter.keyword)
   if (filter.subject) params.set('subject', filter.subject)
+  if (filter.stage) params.set('stage', filter.stage)
   if (filter.district) params.set('district', filter.district)
   if (filter.teachMode) params.set('teachMode', filter.teachMode)
   if (filter.budgetMin != null) params.set('budgetMin', String(filter.budgetMin))

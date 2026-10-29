@@ -8,17 +8,16 @@ const router = useRouter();
   <div class="risk-notice">
     <div class="page-container risk-inner">
       <span class="risk-icon">
-        <img src="/images/home/alert.svg" width="21" height="21" alt="" />
+        <img src="/images/home/figma/triangle-alert.svg" width="23" height="23" alt="" />
       </span>
       <div class="risk-copy">
-        <strong>温馨提示：请谨慎核验身份，不要提前支付大额费用</strong>
+        <strong>请谨慎核验身份，不要提前支付大额费用</strong>
         <p>
-          本平台仅提供音乐家教信息撮合服务，不参与双方交易、不收取课时费，也不对教学结果作承诺。建议在公共场所或有监护人陪同的环境中首次见面，拒绝任何“保证金”“培训费”等异常要求。
+          平台不参与双方授课与交易，不提供支付结算。请保护个人隐私，拒绝异常转账要求，未成年人应由监护人参与沟通。
         </p>
       </div>
       <button type="button" class="guide" @click="router.push('/legal/agreement')">
-        阅读安全指南
-        <img src="/images/home/arrow-blue-sm.svg" width="14" height="14" alt="" />
+        安全指南 ↗
       </button>
     </div>
   </div>
@@ -26,24 +25,20 @@ const router = useRouter();
 
 <style scoped lang="scss">
 .risk-notice {
-  background: #fff5e7;
+  background: #fff0df;
 }
 
 .risk-inner {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding-top: 22px;
-  padding-bottom: 22px;
+  gap: 14px;
+  padding-top: 20px;
+  padding-bottom: 20px;
 }
 
 .risk-icon {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  background: #fff1e6;
   flex-shrink: 0;
 }
 
@@ -52,8 +47,8 @@ const router = useRouter();
   min-width: 0;
 
   strong {
-    color: #13233b;
-    font-size: 14px;
+    color: #173b3d;
+    font-size: 13px;
   }
 
   p {
@@ -68,13 +63,13 @@ const router = useRouter();
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 36px;
-  padding: 0 14px;
+  height: auto;
+  padding: 0;
   border: 0;
-  border-radius: 99px;
-  background: #fff;
-  color: #2878ff;
-  font-size: 11px;
+  border-radius: 0;
+  background: transparent;
+  color: #13857d;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;

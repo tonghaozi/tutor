@@ -8,7 +8,15 @@ export type AuditStatus = 'pending' | 'approved' | 'rejected'
 
 export type TeachMode = 'offline' | 'online' | 'both'
 
+export type Stage = '小学' | '初中' | '高中' | '音乐'
+
 export type Subject =
+  | '语文'
+  | '数学'
+  | '英语'
+  | '物理'
+  | '化学'
+  | '生物'
   | '吉他'
   | '尤克里里'
   | '钢琴'
@@ -52,6 +60,7 @@ export interface Teacher {
   gender?: UserGender
   age?: number
   subjects: Subject[]
+  stages?: Stage[]
   districts: RegionPath[]
   price: number
   teachMode: TeachMode
@@ -71,6 +80,7 @@ export interface Demand {
   id: string
   userId?: string
   subject: Subject
+  stage?: Stage
   district: RegionPath
   budget: number
   schedule: string
@@ -96,6 +106,7 @@ export interface Comment {
 export interface TeacherFilter {
   keyword?: string
   subject?: Subject | ''
+  stage?: Stage | ''
   district?: RegionPath | ''
   teachMode?: TeachMode | ''
   priceMin?: number | null
@@ -105,10 +116,17 @@ export interface TeacherFilter {
 export interface DemandFilter {
   keyword?: string
   subject?: Subject | ''
+  stage?: Stage | ''
   district?: RegionPath | ''
   teachMode?: TeachMode | ''
   budgetMin?: number | null
   budgetMax?: number | null
+}
+
+export interface PlatformMeta {
+  stages: Stage[]
+  subjects: Subject[]
+  subjectsByStage: Record<Stage, Subject[]>
 }
 
 export interface ConsultForm {

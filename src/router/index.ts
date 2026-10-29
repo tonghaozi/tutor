@@ -140,7 +140,7 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAuth && !userStore.isLogin) {
     return { name: 'Login', query: { redirect: to.fullPath } }
   }
-  document.title = `${(to.meta.title as string) || '首页'} - 同号音乐家教`
+  document.title = `${(to.meta.title as string) || '首页'} - 同号家教`
   return true
 })
 

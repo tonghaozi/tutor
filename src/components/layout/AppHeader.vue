@@ -24,6 +24,7 @@ const navItems = computed(() => {
     { path: '/', label: '首页' },
     { path: '/teachers', label: '找老师', hideFor: 'teacher' as const },
     { path: '/students', label: '找学生', hideFor: 'student' as const },
+    { path: '/#stages', label: '学段与科目' },
   ]
   return items.filter((item) => !('hideFor' in item && item.hideFor === role))
 })
@@ -40,6 +41,14 @@ const avatarUrl = computed(() =>
 
 function go(path: string) {
   menuOpen.value = false
+  if (path === '/#stages') {
+    if (route.path === '/') {
+      document.getElementById('stages')?.scrollIntoView({ behavior: 'smooth' })
+      return
+    }
+    router.push({ path: '/', hash: '#stages' })
+    return
+  }
   router.push(path)
 }
 
@@ -98,7 +107,7 @@ async function logout() {
         <img class="brand-logo" src="/logo/logo.png" :alt="APP_NAME" />
         <span class="brand-text">
           <span class="brand-name">{{ APP_NAME }}</span>
-          <span class="brand-en">NATIONWIDE MUSIC TUTORING</span>
+          <span class="brand-en">全国综合家教平台</span>
         </span>
       </div>
 
@@ -192,13 +201,13 @@ async function logout() {
   border-bottom: 1px solid rgba(230, 236, 245, 0.8);
 
   &.on-home {
-    background: #f8fbff;
+    background: #fff;
     border-bottom-color: transparent;
   }
 }
 
 .header-inner {
-  height: 78px;
+  height: 88px;
   display: flex;
   align-items: center;
   gap: 24px;
@@ -226,17 +235,16 @@ async function logout() {
 }
 
 .brand-name {
-  font-size: 18px;
+  font-size: 23px;
   font-weight: 800;
-  color: #13233b;
+  color: #173b3d;
   line-height: 1.2;
 }
 
 .brand-en {
-  color: #718096;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  color: #687e7e;
+  font-size: 10px;
+  font-weight: 400;
 }
 
 .nav-desktop {
@@ -256,7 +264,7 @@ async function logout() {
   padding: 6px 0;
 
   &.active {
-    color: #2878ff;
+    color: #13857d;
     font-weight: 700;
 
     &::after {
@@ -267,13 +275,13 @@ async function logout() {
       width: 16px;
       height: 3px;
       border-radius: 99px;
-      background: #2878ff;
+      background: #13857d;
       transform: translateX(-50%);
     }
   }
 
   &:hover {
-    color: #2878ff;
+    color: #13857d;
   }
 }
 
@@ -302,9 +310,9 @@ async function logout() {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 40px;
-  padding: 0 18px;
-  border-radius: 999px;
+  height: 46px;
+  padding: 0 20px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -312,24 +320,24 @@ async function logout() {
 }
 
 .login-link {
-  border: 1px solid #e6ecf5;
-  background: #fff;
-  color: #1658d7;
+  border: 0;
+  background: transparent;
+  color: #173b3d;
+  padding: 0;
 
   &:hover {
-    border-color: #99b4ff;
-    color: #2878ff;
+    color: #13857d;
   }
 }
 
 .cta-btn {
   border: 0;
-  background: #2878ff;
+  background: #13857d;
   color: #fff;
-  box-shadow: 0 8px 20px rgba(40, 120, 255, 0.22);
+  box-shadow: none;
 
   &:hover {
-    background: #1f6aef;
+    background: #0f736c;
   }
 }
 

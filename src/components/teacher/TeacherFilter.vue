@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
 import type { TeacherFilter } from '@/types'
-import { SUBJECTS, TEACH_MODE_OPTIONS } from '@/constants'
+import { STAGES, SUBJECTS, TEACH_MODE_OPTIONS } from '@/constants'
 import DistrictBar from '@/components/layout/DistrictBar.vue'
 import { useAppStore } from '@/store'
 
@@ -26,6 +26,7 @@ const appStore = useAppStore()
 const form = reactive<TeacherFilter>({
   keyword: '',
   subject: '',
+  stage: '',
   district: appStore.regionPath,
   teachMode: '',
   priceMin: null,
@@ -57,6 +58,7 @@ function emitChange() {
 function reset() {
   form.keyword = ''
   form.subject = ''
+  form.stage = ''
   form.teachMode = ''
   form.priceMin = null
   form.priceMax = null
@@ -77,6 +79,11 @@ function reset() {
           style="width: 180px"
           @keyup.enter="emitChange"
         />
+      </el-form-item>
+      <el-form-item label="学段">
+        <el-select v-model="form.stage" clearable placeholder="全部" style="width: 110px">
+          <el-option v-for="s in STAGES" :key="s" :label="s" :value="s" />
+        </el-select>
       </el-form-item>
       <el-form-item label="学科">
         <el-select v-model="form.subject" clearable placeholder="全部" style="width: 120px">

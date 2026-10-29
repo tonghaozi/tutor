@@ -8,6 +8,30 @@
   background: linear-gradient(180deg, #edf2ff 0%, #ffffff 14%);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 
+  &.th-dialog--teal {
+    background: linear-gradient(180deg, #eaf6f1 0%, #ffffff 14%);
+
+    .el-dialog__title {
+      color: #173b3d;
+    }
+
+    .el-button--primary {
+      --el-button-bg-color: #13857d;
+      --el-button-border-color: #13857d;
+      --el-button-hover-bg-color: #0f6f69;
+      --el-button-hover-border-color: #0f6f69;
+    }
+
+    .el-button--default:hover {
+      border-color: #13857d;
+      color: #13857d;
+    }
+
+    .el-dialog__headerbtn .el-dialog__close:hover {
+      color: #13857d;
+    }
+  }
+
   .el-dialog__header {
     display: flex;
     align-items: center;

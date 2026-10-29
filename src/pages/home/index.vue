@@ -1,174 +1,179 @@
 ﻿<script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { ElMessage } from "element-plus";
 import {
-  apiGetComments,
-  apiGetDashboard,
   apiGetDemands,
   apiGetHotTeachers,
   apiGetTeachers,
 } from "@/api";
-import { SUBJECTS, TEACH_MODE_MAP } from "@/constants";
-import { useAppStore } from "@/store";
-import type { Comment, Demand, Teacher } from "@/types";
-import { formatDate, resolveAvatar } from "@/utils";
+import {
+  GRADES_BY_STAGE,
+  STAGES,
+  SUBJECTS_BY_STAGE,
+  TEACH_MODE_MAP,
+  TEACH_MODE_OPTIONS,
+} from "@/constants";
+import StudentDemandDialog from "@/components/demand/StudentDemandDialog.vue";
+import TeacherJoinDialog from "@/components/teacher/TeacherJoinDialog.vue";
+import { useAppStore, useUserStore } from "@/store";
+import type { Demand, Stage, Subject, TeachMode, Teacher } from "@/types";
+import { resolveAvatar } from "@/utils";
 import { formatRegion, formatRegions, splitRegionPath } from "@/utils/region";
 
 const router = useRouter();
 const appStore = useAppStore();
+const userStore = useUserStore();
 
-const subjects = SUBJECTS.slice(0, 10);
-const cities = [
-  { label: "全国", path: "" },
-  { label: "上海", path: "上海市/上海市" },
-  { label: "北京", path: "北京市/北京市" },
-  { label: "合肥", path: "安徽省/合肥市" },
-  { label: "深圳", path: "广东省/深圳市" },
-  { label: "杭州", path: "浙江省/杭州市" },
-  { label: "广州", path: "广东省/广州市" },
-  { label: "成都", path: "四川省/成都市" },
-  { label: "武汉", path: "湖北省/武汉市" },
-];
-const hotTags = [
-  { label: "钢琴启蒙", subject: "钢琴", tone: "solid" },
-  { label: "声乐基础", subject: "声乐", tone: "plain" },
-  { label: "吉他流行", subject: "吉他", tone: "plain" },
-  { label: "乐理辅导", subject: "音乐理论", tone: "warm" },
-];
-const budgets = [
-  { label: "不限预算", min: undefined as number | undefined, max: undefined as number | undefined },
-  { label: "100–180 元", min: 100, max: 180 },
-  { label: "180–250 元", min: 180, max: 250 },
-  { label: "250–400 元", min: 250, max: 400 },
-  { label: "400 元以上", min: 400, max: undefined },
+const stageTabs = [
+  { id: "小学" as Stage, hint: "打好基础", icon: "book-open-tab.svg" },
+  { id: "初中" as Stage, hint: "理解与应用", icon: "flask.svg" },
+  { id: "高中" as Stage, hint: "思维与方法", icon: "atom-tab.svg" },
+  { id: "音乐" as Stage, hint: "兴趣与表达", icon: "music-tab.svg" },
 ];
 
-const subject = ref("钢琴");
-const cityLabel = ref(appStore.cityLabel || "全国");
-const cityPath = ref(appStore.cityPath || "");
-const budgetIndex = ref(2);
-const openMenu = ref<"subject" | "city" | "budget" | "">("");
-const saved = ref<Record<string, boolean>>({});
-const hotTeachers = ref<Teacher[]>([]);
-const demands = ref<Demand[]>([]);
-const stories = ref<
-  { quote: string; avatar: string; name: string; role: string; featured: boolean; rating: number }[]
->([]);
-const teacherTotal = ref(0);
-const demandTotal = ref(0);
-const commentTotal = ref(0);
-const loading = ref(false);
-
-const washes = ["#eaf2ff", "#fff1e6", "#ddf8ee", "#f0eaff"];
+const stageCards = [
+  {
+    id: "小学" as Stage,
+    range: "一年级 — 六年级",
+    subjects: "语文　数学　英语",
+    desc: ["从阅读、计算到表达，", "找到适合孩子的学习节奏。"],
+    icon: "book-open-card.svg",
+    tone: "mint",
+  },
+  {
+    id: "初中" as Stage,
+    range: "初一 — 初三",
+    subjects: "语文　数学　英语\n物理　化学",
+    desc: ["梳理知识联系，理解解题思路。"],
+    icon: "flask-card.svg",
+    tone: "sky",
+  },
+  {
+    id: "高中" as Stage,
+    range: "高一 — 高三",
+    subjects: "数学　物理　化学\n语文　英语　生物等",
+    desc: ["围绕薄弱环节，交流学习方法。"],
+    icon: "atom-card.svg",
+    tone: "mint",
+  },
+  {
+    id: "音乐" as Stage,
+    range: "启蒙 · 兴趣 · 进阶",
+    subjects: "钢琴　吉他　声乐\n小提琴　乐理等",
+    desc: ["从第一段旋律，到自在表达。"],
+    icon: "music-card.svg",
+    tone: "warm",
+  },
+];
 
 const steps = [
   {
-    icon: "sliders",
-    wash: "#eaf2ff",
     no: "01",
-    title: "发布学琴需求",
-    desc: "填写乐器科目、所在城市与课时预算，1 分钟发布需求。",
-    arrow: true,
+    title: "说清学习需求",
+    desc: "选择城市、学段与科目，补充学习目标、可约时间和意向预算。",
+    icon: "clipboard.svg",
   },
   {
-    icon: "users-round",
-    wash: "#fff1e6",
     no: "02",
-    title: "系统匹配老师",
-    desc: "浏览全国认证老师，或等待附近合适老师主动联系你。",
-    arrow: true,
+    title: "双向发现彼此",
+    desc: "家长浏览老师资料，老师查看学员需求，按各自条件自由选择。",
+    icon: "scan-search.svg",
   },
   {
-    icon: "messages-square",
-    wash: "#ddf8ee",
     no: "03",
-    title: "沟通试听",
-    desc: "先聊教学思路与时间，满意后再约上门或线上试听。",
-    arrow: true,
+    title: "先沟通，再约课",
+    desc: "核验身份与相关材料，交流教学思路，商议是否安排试听。",
+    icon: "messages.svg",
   },
   {
-    icon: "handshake",
-    wash: "#f0eaff",
     no: "04",
-    title: "自主开课",
-    desc: "双方自行确定课时与费用，平台不收取课时费。",
-    arrow: false,
+    title: "双方自主确定",
+    desc: "自行约定授课、课时和费用；平台不收取课时费，不提供支付结算。",
+    icon: "handshake.svg",
   },
 ];
 
-const subjectsGrid = [
-  { icon: "sigma", wash: "#eaf2ff", name: "钢琴", count: "考级陪练" },
-  { icon: "languages", wash: "#fff1e6", name: "声乐", count: "流行美声" },
-  { icon: "book-open-text", wash: "#f0eaff", name: "吉他", count: "主打热门" },
-  { icon: "atom", wash: "#ddf8ee", name: "古筝", count: "民乐入门" },
-  { icon: "pencil-ruler", wash: "#fff7d9", name: "小提琴", count: "基础乐团" },
-  { icon: "palette", wash: "#ffeaf1", name: "架子鼓", count: "节奏乐队" },
-];
-
-const areas = [
-  { name: "上海", path: "上海市/上海市", count: "长三角", active: true },
-  { name: "北京", path: "北京市/北京市", count: "华北", active: false },
-  { name: "合肥", path: "安徽省/合肥市", count: "华东热门", active: false },
-  { name: "深圳", path: "广东省/深圳市", count: "珠三角", active: false },
-  { name: "杭州", path: "浙江省/杭州市", count: "线上活跃", active: false },
-  { name: "广州", path: "广东省/广州市", count: "华南", active: false },
-  { name: "成都", path: "四川省/成都市", count: "西南", active: false },
-  { name: "武汉", path: "湖北省/武汉市", count: "华中", active: false },
+const cities = [
+  { label: "北京", path: "北京市/北京市" },
+  { label: "上海", path: "上海市/上海市" },
+  { label: "广州", path: "广东省/广州市" },
+  { label: "深圳", path: "广东省/深圳市" },
+  { label: "杭州", path: "浙江省/杭州市" },
+  { label: "南京", path: "江苏省/南京市" },
+  { label: "成都", path: "四川省/成都市" },
+  { label: "武汉", path: "湖北省/武汉市" },
+  { label: "西安", path: "陕西省/西安市" },
+  { label: "重庆", path: "重庆市/重庆市" },
+  { label: "苏州", path: "江苏省/苏州市" },
 ];
 
 const safeguards = [
   {
-    icon: "scan-face",
-    title: "老师资料审核",
-    desc: "入驻需提交真实手机与教学经历，管理员审核通过后展示。",
+    icon: "contact.svg",
+    title: "身份与资料，亲自核验",
+    lines: ["联系后核对身份、教学经历及相关材料，", "资料展示不等于平台认证。"],
   },
   {
-    icon: "message-lock",
-    title: "隐私分级展示",
-    desc: "联系方式不公开展示，双方确认意向后再自主交换。",
+    icon: "wallet-trust.svg",
+    title: "先约沟通，不盲目预付",
+    lines: ["提前说清试听、费用与取消约定，", "不要预付大额课时费。"],
   },
   {
-    icon: "dollar",
-    title: "平台不代收课时费",
-    desc: "课时与费用由双方协商，平台不抽成、不提供资金托管。",
+    icon: "users-trust.svg",
+    title: "未成年人，监护人参与",
+    lines: ["首次见面选择安全环境，", "由监护人陪同沟通与试听。"],
   },
   {
-    icon: "siren",
-    title: "举报与风险提醒",
-    desc: "遇到诱导转账、证件异常等情况，可快速举报并获取协助。",
+    icon: "shield-alert.svg",
+    title: "异常收费，保持警惕",
+    lines: ["警惕保证金、培训费等异常要求，", "保存记录，必要时举报或报警。"],
   },
 ];
 
-const budgetLabel = computed(() => budgets[budgetIndex.value]?.label || "不限预算");
-const featuredTeacher = computed(() => hotTeachers.value[0]);
-const matchedCount = computed(() => Math.max(hotTeachers.value.length, teacherTotal.value, 1));
+const stage = ref<Stage>("小学");
+const grade = ref("四年级");
+const subject = ref<Subject>("数学");
+const teachMode = ref<TeachMode | "">("");
+const cityLabel = ref(appStore.cityLabel || "全国");
+const cityPath = ref(appStore.cityPath || "");
+const openMenu = ref<"city" | "grade" | "subject" | "mode" | "">("");
+const tutorFilter = ref<Stage | "全部">("全部");
+const hotTeachers = ref<Teacher[]>([]);
+const allTeachers = ref<Teacher[]>([]);
+const demands = ref<Demand[]>([]);
+const loading = ref(false);
+const studentDemandVisible = ref(false);
+const teacherJoinVisible = ref(false);
+const activeCity = ref("北京");
 
-const statsCards = computed(() => [
-  {
-    icon: "users",
-    value: teacherTotal.value > 0 ? `${teacherTotal.value.toLocaleString()}+` : "—",
-    label: "全国音乐家教资料",
-    tip: "持续更新",
-  },
-  {
-    icon: "home",
-    value: demandTotal.value > 0 ? `${demandTotal.value.toLocaleString()}+` : "—",
-    label: "家庭发布需求",
-    tip: "真实全国",
-  },
-  {
-    icon: "message-circle-light",
-    value: commentTotal.value > 0 ? `${Math.min(99, Math.round((commentTotal.value / Math.max(teacherTotal.value, 1)) * 20) + 80)}%` : "96%",
-    label: "需求获得响应",
-    tip: "平均 18 分钟",
-  },
-  {
-    icon: "map",
-    value: "9 年",
-    label: "专注全国音乐家教",
-    tip: "全国服务",
-  },
-]);
+const subjectOptions = computed(() => SUBJECTS_BY_STAGE[stage.value] || []);
+const gradeOptions = computed(() => GRADES_BY_STAGE[stage.value] || []);
+const modeLabel = computed(() => {
+  if (!teachMode.value) return "线上 / 线下不限";
+  return TEACH_MODE_MAP[teachMode.value];
+});
+
+const searchHint = computed(() => {
+  const subs = subjectOptions.value.join("、");
+  return `当前：${stage.value} · ${grade.value} · ${subject.value}　 /　${stage.value}可选${subs}；切换学段后，年级与科目同步更新。`;
+});
+
+const displayedTeachers = computed(() => {
+  const source = allTeachers.value.length ? allTeachers.value : hotTeachers.value;
+  const filtered =
+    tutorFilter.value === "全部"
+      ? source
+      : source.filter((t) => (t.stages || []).includes(tutorFilter.value as Stage) || !(t.stages || []).length);
+  return filtered.slice(0, 4);
+});
+
+watch(stage, (next) => {
+  const grades = GRADES_BY_STAGE[next];
+  const subjects = SUBJECTS_BY_STAGE[next];
+  grade.value = grades[Math.min(3, grades.length - 1)] || grades[0];
+  subject.value = subjects[0];
+});
 
 function shortArea(paths: string[] = []) {
   const text = formatRegions(paths);
@@ -177,14 +182,7 @@ function shortArea(paths: string[] = []) {
     .split(" / ")
     .map((part) => splitRegionPath(part).slice(-1)[0] || part)
     .slice(0, 2)
-    .join(" / ");
-}
-
-function teacherSubline(teacher?: Teacher) {
-  if (!teacher) return "音乐学院 · 全国";
-  const city = shortArea(teacher.districts);
-  const exp = teacher.experience?.slice(0, 10) || "音乐老师";
-  return `${exp} · ${city}`;
+    .join(" · ");
 }
 
 function demandCity(path = "") {
@@ -193,22 +191,33 @@ function demandCity(path = "") {
   return formatRegion(path) || "全国";
 }
 
-function relativeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.max(1, Math.floor(diff / 60000));
-  if (mins < 60) return `${mins}分钟前发布`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}小时前发布`;
-  return formatDate(iso);
+function teacherStage(teacher: Teacher): Stage {
+  if (teacher.stages?.length) return teacher.stages[0];
+  const music = SUBJECTS_BY_STAGE.音乐;
+  if (teacher.subjects.some((s) => music.includes(s))) return "音乐";
+  if (teacher.subjects.some((s) => ["物理", "化学", "生物"].includes(s))) return "高中";
+  return "小学";
 }
 
-function toggleMenu(key: "subject" | "city" | "budget") {
+function demandStage(item: Demand): Stage {
+  if (item.stage) return item.stage;
+  if (SUBJECTS_BY_STAGE.音乐.includes(item.subject)) return "音乐";
+  if (["物理", "化学", "生物"].includes(item.subject)) return "高中";
+  return "小学";
+}
+
+function teacherFocus(teacher: Teacher) {
+  const sub = teacher.subjects.slice(0, 2).join(" / ") || "综合辅导";
+  const stageLabel = (teacher.stages || []).join("、") || teacher.experience.slice(0, 10);
+  return `${sub} · ${stageLabel}`;
+}
+
+function modeText(mode: TeachMode) {
+  return TEACH_MODE_MAP[mode] || "线上 / 线下";
+}
+
+function toggleMenu(key: typeof openMenu.value) {
   openMenu.value = openMenu.value === key ? "" : key;
-}
-
-function chooseSubject(value: string) {
-  subject.value = value;
-  openMenu.value = "";
 }
 
 function chooseCity(label: string, path: string) {
@@ -217,88 +226,99 @@ function chooseCity(label: string, path: string) {
   openMenu.value = "";
 }
 
-function chooseBudget(index: number) {
-  budgetIndex.value = index;
+function chooseGrade(value: string) {
+  grade.value = value;
+  openMenu.value = "";
+}
+
+function chooseSubject(value: Subject) {
+  subject.value = value;
+  openMenu.value = "";
+}
+
+function chooseMode(value: TeachMode | "") {
+  teachMode.value = value;
   openMenu.value = "";
 }
 
 function searchGo() {
-  const budget = budgets[budgetIndex.value];
   router.push({
     path: "/teachers",
     query: {
       subject: subject.value || undefined,
+      stage: stage.value || undefined,
       district: cityPath.value || undefined,
-      priceMin: budget?.min != null ? String(budget.min) : undefined,
-      priceMax: budget?.max != null ? String(budget.max) : undefined,
+      teachMode: teachMode.value || undefined,
     },
   });
 }
 
-function pickHot(tag: { label: string; subject: string }) {
-  subject.value = tag.subject;
-  searchGo();
-}
-
-function goTeachers(keyword?: string) {
-  router.push({ path: "/teachers", query: keyword ? { keyword } : undefined });
-}
-
-function goCity(path: string) {
-  router.push({ path: "/teachers", query: { district: path } });
+function goTeachers(extra?: { stage?: Stage; subject?: string; district?: string; teachMode?: string }) {
+  router.push({
+    path: "/teachers",
+    query: {
+      stage: extra?.stage,
+      subject: extra?.subject,
+      district: extra?.district,
+      teachMode: extra?.teachMode,
+    },
+  });
 }
 
 function goTeacher(id: string) {
   router.push(`/teachers/${id}`);
 }
 
-function buildStories(list: Comment[], teachers: Teacher[]) {
-  const fallbacks = [
-    { role: "全国 · 音乐学员", avatar: "/images/home/review-1.png" },
-    { role: "上海 · 钢琴家长", avatar: "/images/home/review-2.png" },
-    { role: "合肥 · 吉他学员", avatar: "/images/home/review-3.png" },
-  ];
-  return list.slice(0, 3).map((c, i) => {
-    const teacher = teachers.find((t) => t.id === c.teacherId);
-    return {
-      quote: `“${c.content}”`,
-      avatar: fallbacks[i]?.avatar || "/images/home/review-1.png",
-      name: c.userName,
-      role: teacher ? `${shortArea(teacher.districts)} · ${teacher.subjects[0] || "音乐"}` : fallbacks[i]?.role || "全国 · 音乐学员",
-      featured: i === 1,
-      rating: c.rating,
-    };
-  });
+function goDemand(id: string) {
+  router.push(`/students/${id}`);
+}
+
+function goCity(label: string, path: string) {
+  activeCity.value = label;
+  goTeachers({ district: path });
+}
+
+function openPublish() {
+  if (!userStore.isLogin) {
+    ElMessage.warning("请先登录后再发布需求");
+    router.push({ path: "/auth/login", query: { redirect: "/" } });
+    return;
+  }
+  if (userStore.userInfo?.role === "teacher") {
+    teacherJoinVisible.value = true;
+    return;
+  }
+  studentDemandVisible.value = true;
+}
+
+function openTeacherJoin() {
+  if (!userStore.isLogin) {
+    ElMessage.warning("请先登录后再完善资料");
+    router.push({ path: "/auth/login", query: { redirect: "/teacher/join" } });
+    return;
+  }
+  teacherJoinVisible.value = true;
 }
 
 async function load() {
   loading.value = true;
   try {
-    const [hot, list, dash, all] = await Promise.all([
+    const [hot, list, demandsList] = await Promise.all([
       apiGetHotTeachers(),
-      apiGetDemands(),
-      apiGetDashboard().catch(() => null),
       apiGetTeachers().catch(() => [] as Teacher[]),
+      apiGetDemands(),
     ]);
+    hotTeachers.value = hot;
     const merged = [...hot];
-    for (const item of all) {
+    for (const item of list) {
       if (!merged.some((t) => t.id === item.id)) merged.push(item);
     }
-    hotTeachers.value = merged.slice(0, 4);
-    demands.value = list.slice(0, 4);
-    teacherTotal.value = dash?.teacherCount ?? all.length ?? hot.length;
-    demandTotal.value = dash?.demandCount ?? list.length;
-    commentTotal.value = dash?.commentCount ?? 0;
-
-    const commentGroups = await Promise.all(
-      hotTeachers.value.slice(0, 4).map((t) => apiGetComments(t.id).catch(() => [] as Comment[])),
-    );
-    const flat = commentGroups.flat().filter((c) => c.visible !== false);
-    stories.value = buildStories(flat, hotTeachers.value);
+    allTeachers.value = merged;
+    demands.value = demandsList.slice(0, 4);
   } catch {
     hotTeachers.value = [];
+    allTeachers.value = [];
     demands.value = [];
-    stories.value = [];
   } finally {
     loading.value = false;
   }
@@ -310,1736 +330,1241 @@ onMounted(load);
 <template>
   <div class="home" @click="openMenu = ''">
     <section class="hero">
-      <div class="wrap hero-grid">
+      <div class="wrap hero-top">
         <div class="hero-copy">
-          <div class="trust-pill">
-            <img src="/images/home/shield-check.svg" width="16" height="16" alt="" />
-            <span>全国音乐家教 · 真人信息核验 · 双向自由联系</span>
+          <div class="eyebrow">
+            <i class="line" />
+            <span>从学科探索，到音乐热爱</span>
           </div>
-          <h1>找到合拍的音乐老师，<br />从试听开始</h1>
+          <h1>每个学习阶段，<br />都有合拍的老师。</h1>
           <p class="lead">
-            覆盖钢琴、声乐、吉他、尤克里里等多种乐器，按科目、级别与城市快速匹配。平台仅做信息撮合，不收取课时费。
+            小学语数英、初高中数理化，也有钢琴与吉他。<br />
+            在同号，按孩子的阶段与兴趣，寻找适合的陪伴。
           </p>
-
-          <div class="search" @click.stop>
-            <div class="search-row">
-              <button type="button" class="cond" @click="toggleMenu('subject')">
-                <span class="cond-icon"><img src="/images/home/graduation-cap.svg" width="17" height="17" alt="" /></span>
-                <span class="cond-text">
-                  <small>想学什么</small>
-                  <strong>{{ subject }}</strong>
-                </span>
-                <img src="/images/home/chevron-down.svg" width="15" height="15" alt="" />
-                <ul v-if="openMenu === 'subject'" class="menu">
-                  <li v-for="item in subjects" :key="item" @click="chooseSubject(item)">{{ item }}</li>
-                </ul>
-              </button>
-              <i class="split" />
-              <button type="button" class="cond" @click="toggleMenu('city')">
-                <span class="cond-icon"><img src="/images/home/map-pin.svg" width="16" height="16" alt="" /></span>
-                <span class="cond-text">
-                  <small>上课城市</small>
-                  <strong>{{ cityLabel }}</strong>
-                </span>
-                <img src="/images/home/chevron-down.svg" width="15" height="15" alt="" />
-                <ul v-if="openMenu === 'city'" class="menu">
-                  <li v-for="item in cities" :key="item.label" @click="chooseCity(item.label, item.path)">
-                    {{ item.label }}
-                  </li>
-                </ul>
-              </button>
-              <i class="split" />
-              <button type="button" class="cond budget" @click="toggleMenu('budget')">
-                <span class="cond-icon"><img src="/images/home/wallet.svg" width="17" height="17" alt="" /></span>
-                <span class="cond-text">
-                  <small>课时预算</small>
-                  <strong>{{ budgetLabel }}</strong>
-                </span>
-                <img src="/images/home/chevron-down.svg" width="15" height="15" alt="" />
-                <ul v-if="openMenu === 'budget'" class="menu">
-                  <li
-                    v-for="(item, index) in budgets"
-                    :key="item.label"
-                    @click="chooseBudget(index)"
-                  >
-                    {{ item.label }}
-                  </li>
-                </ul>
-              </button>
-              <button type="button" class="search-btn" aria-label="搜索老师" @click="searchGo">
-                <img src="/images/home/search.svg" width="23" height="23" alt="" />
-              </button>
-            </div>
-            <div class="hot">
-              <span>热门：</span>
-              <button
-                v-for="tag in hotTags"
-                :key="tag.label"
-                type="button"
-                :class="['chip', tag.tone, { on: subject === tag.subject }]"
-                @click="pickHot(tag)"
-              >
-                {{ tag.label }}
-              </button>
-            </div>
-          </div>
-
-          <div class="hints">
-            <span><img src="/images/home/circle-check.svg" width="15" height="15" alt="" />免费发布需求</span>
-            <span><img src="/images/home/circle-check.svg" width="15" height="15" alt="" />无中介抽成</span>
-            <span><img src="/images/home/circle-check.svg" width="15" height="15" alt="" />直接沟通试听</span>
+          <div class="checks">
+            <span><img src="/images/home/figma/check-teal.svg" width="15" height="15" alt="" />全国信息撮合</span>
+            <span><img src="/images/home/figma/check-teal.svg" width="15" height="15" alt="" />线上 / 线下可选</span>
+            <span><img src="/images/home/figma/check-teal.svg" width="15" height="15" alt="" />不收取课时费</span>
           </div>
         </div>
-
         <div class="hero-photo">
-          <img class="cover" src="/images/home/hero-music.png" alt="音乐老师一对一授课" />
-          <div class="float match">
-            <div class="match-top">
-              <strong>已匹配 {{ matchedCount }} 位老师</strong>
-              <em><i />可联系</em>
-            </div>
-            <div class="match-body">
-              <img
-                class="avatar"
-                :src="resolveAvatar(featuredTeacher?.avatar, featuredTeacher?.gender)"
-                alt=""
-              />
-              <div>
-                <b>{{ featuredTeacher?.name || "音乐老师" }} · {{ featuredTeacher?.subjects?.[0] || "钢琴" }}</b>
-                <small>{{ teacherSubline(featuredTeacher) }}</small>
-              </div>
-              <img src="/images/home/message-circle.svg" width="18" height="18" alt="" />
-            </div>
-          </div>
-          <div class="float speed">
-            <span class="zap"><img src="/images/home/zap.svg" width="16" height="16" alt="" /></span>
-            <div>
-              <b>平均 18 分钟响应</b>
-              <small>今日 {{ Math.max(teacherTotal, hotTeachers.length, 1) }} 位老师在线</small>
-            </div>
+          <img src="/images/home/figma/hero-family.png" alt="家庭学习场景" />
+          <div class="photo-chip">
+            <img src="/images/home/figma/sprout.svg" width="22" height="22" alt="" />
+            <b>让好奇心，慢慢长大</b>
           </div>
         </div>
       </div>
-    </section>
 
-    <section class="stats-wrap">
-      <div class="wrap stats">
-        <div class="stats-lead">
-          <strong>被全国家庭信赖</strong>
-          <p>每一条资料都经过基础信息审核</p>
-        </div>
-        <div v-for="item in statsCards" :key="item.label" class="stat">
-          <span class="stat-icon"><img :src="`/images/home/${item.icon}.svg`" width="20" height="20" alt="" /></span>
-          <div>
-            <b>{{ item.value }}</b>
-            <span>{{ item.label }}</span>
-            <small>{{ item.tip }}</small>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="band">
       <div class="wrap">
-        <header class="block-head">
+        <div class="search-card" @click.stop>
+          <div class="stage-tabs">
+            <button
+              v-for="item in stageTabs"
+              :key="item.id"
+              type="button"
+              :class="['stage-tab', { on: stage === item.id }]"
+              @click="stage = item.id"
+            >
+              <img :src="`/images/home/figma/${item.icon}`" width="19" height="19" alt="" />
+              <strong>{{ item.id }}</strong>
+              <em>{{ item.hint }}</em>
+            </button>
+          </div>
+
+          <div class="filters">
+            <button type="button" class="filter" @click="toggleMenu('city')">
+              <small>所在城市</small>
+              <span>
+                <b>{{ cityLabel === "全国" ? "全国城市" : cityLabel }}</b>
+                <img src="/images/home/figma/chevron-down-muted.svg" width="15" height="15" alt="" />
+              </span>
+              <ul v-if="openMenu === 'city'" class="menu">
+                <li @click="chooseCity('全国', '')">全国城市</li>
+                <li v-for="item in cities" :key="item.label" @click="chooseCity(item.label, item.path)">
+                  {{ item.label }}
+                </li>
+              </ul>
+            </button>
+            <i class="split" />
+            <button type="button" class="filter" @click="toggleMenu('grade')">
+              <small>年级 · {{ stage }}</small>
+              <span>
+                <b>{{ grade }}</b>
+                <img src="/images/home/figma/chevron-down-muted.svg" width="15" height="15" alt="" />
+              </span>
+              <ul v-if="openMenu === 'grade'" class="menu">
+                <li v-for="item in gradeOptions" :key="item" @click="chooseGrade(item)">{{ item }}</li>
+              </ul>
+            </button>
+            <i class="split" />
+            <button type="button" class="filter" @click="toggleMenu('subject')">
+              <small>科目 · 随学段切换</small>
+              <span>
+                <b>{{ subject }}</b>
+                <img src="/images/home/figma/chevron-down-muted.svg" width="15" height="15" alt="" />
+              </span>
+              <ul v-if="openMenu === 'subject'" class="menu">
+                <li v-for="item in subjectOptions" :key="item" @click="chooseSubject(item)">{{ item }}</li>
+              </ul>
+            </button>
+            <i class="split" />
+            <button type="button" class="filter wide" @click="toggleMenu('mode')">
+              <small>授课方式</small>
+              <span>
+                <b>{{ modeLabel }}</b>
+                <img src="/images/home/figma/chevron-down-muted.svg" width="15" height="15" alt="" />
+              </span>
+              <ul v-if="openMenu === 'mode'" class="menu">
+                <li @click="chooseMode('')">线上 / 线下不限</li>
+                <li v-for="item in TEACH_MODE_OPTIONS" :key="item.value" @click="chooseMode(item.value)">
+                  {{ TEACH_MODE_MAP[item.value] }}
+                </li>
+              </ul>
+            </button>
+            <button type="button" class="search-btn" @click="searchGo">
+              查找合适的老师
+              <img src="/images/home/figma/search-white.svg" width="17" height="17" alt="" />
+            </button>
+          </div>
+          <p class="hint">{{ searchHint }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="stages" class="section">
+      <div class="wrap">
+        <header class="head">
+          <p class="kicker">EXPLORE / 学段与兴趣</p>
+          <h2>先选学习阶段，再找到方向</h2>
+          <p class="sub">学科辅导与音乐学习，各有清晰入口。按当前年级和学习目标，进一步了解老师。</p>
+        </header>
+        <div class="stage-grid">
+          <article
+            v-for="card in stageCards"
+            :key="card.id"
+            :class="['stage-card', card.tone]"
+            @click="goTeachers({ stage: card.id })"
+          >
+            <div class="stage-card-top">
+              <img :src="`/images/home/figma/${card.icon}`" width="30" height="30" alt="" />
+              <img src="/images/home/figma/arrow-up-right.svg" width="20" height="20" alt="" />
+            </div>
+            <h3>{{ card.id }}</h3>
+            <p class="range">{{ card.range }}</p>
+            <p class="subs">{{ card.subjects }}</p>
+            <p class="desc">
+              <template v-for="(line, i) in card.desc" :key="i">{{ line }}<br v-if="i < card.desc.length - 1" /></template>
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section tutors">
+      <div class="wrap">
+        <header class="head row">
           <div>
-            <p class="kicker"><i />HOT TUTORS</p>
-            <h2>这些老师，正在全国各地教授音乐</h2>
-            <p>资料透明、时间可约，先看看教学经历与家长评价，再决定是否联系。</p>
+            <p class="kicker">MEET YOUR TUTOR / 教师发现</p>
+            <h2>合适的老师，不止一种模样</h2>
+            <p class="sub">从授课科目、教学侧重与可约时间开始了解，再决定是否联系。</p>
           </div>
           <button type="button" class="more" @click="goTeachers()">
             查看全部老师
-            <img src="/images/home/arrow-right.svg" width="17" height="17" alt="" />
+            <img src="/images/home/figma/arrow-right-teal.svg" width="18" height="18" alt="" />
           </button>
         </header>
+
+        <div class="tutor-tools">
+          <div class="chips">
+            <button
+              type="button"
+              :class="['chip', { on: tutorFilter === '全部' }]"
+              @click="tutorFilter = '全部'"
+            >
+              全部
+            </button>
+            <button
+              v-for="item in STAGES"
+              :key="item"
+              type="button"
+              :class="['chip', { on: tutorFilter === item }]"
+              @click="tutorFilter = item"
+            >
+              {{ item }}
+            </button>
+          </div>
+        </div>
+
         <div v-loading="loading" class="tutor-grid">
           <article
-            v-for="(tutor, index) in hotTeachers"
+            v-for="tutor in displayedTeachers"
             :key="tutor.id"
             class="tutor"
             @click="goTeacher(tutor.id)"
           >
-            <div class="tutor-photo" :style="{ background: washes[index % washes.length] }">
+            <div class="tutor-photo">
               <img
                 :src="resolveAvatar(tutor.avatar, tutor.gender)"
                 :alt="tutor.name"
                 @error="($event.target as HTMLImageElement).src = resolveAvatar(undefined, tutor.gender)"
               />
-              <span class="pop"><img src="/images/home/sparkles.svg" width="13" height="13" alt="" />本周受欢迎</span>
+              <span class="badge">{{ teacherStage(tutor) }}</span>
             </div>
             <div class="tutor-body">
               <div class="name-row">
-                <div class="name-line">
-                  <strong>{{ tutor.name }}</strong>
-                  <em v-if="tutor.status === 'approved'">
-                    <img src="/images/home/badge-check.svg" width="14" height="14" alt="" />身份已核验
-                  </em>
-                </div>
-                <button
-                  type="button"
-                  class="heart"
-                  :class="{ on: saved[tutor.id] }"
-                  aria-label="收藏"
-                  @click.stop="saved[tutor.id] = !saved[tutor.id]"
-                >
-                  <img src="/images/home/heart.svg" width="16" height="16" alt="" />
-                </button>
+                <strong>{{ tutor.name }}</strong>
               </div>
-              <p class="cred">
-                <b>{{ tutor.subjects.slice(0, 2).join(" · ") || "音乐" }}</b>
-                <span>{{ TEACH_MODE_MAP[tutor.teachMode] }}</span>
-              </p>
-              <span class="subject-pill">{{ tutor.experience.slice(0, 18) || "音乐家教" }}</span>
-              <div class="meta">
-                <span>
-                  <img src="/images/home/map-pin-muted.svg" width="14" height="14" alt="" />
-                  {{ shortArea(tutor.districts) }}
-                </span>
-                <span>{{ tutor.rating.toFixed(1) }} · {{ tutor.reviewCount }}条评价</span>
-              </div>
-              <div class="price-row">
-                <b>¥{{ tutor.price }}/课时</b>
-                <button type="button" class="chat" @click.stop="goTeacher(tutor.id)">
-                  <img src="/images/home/message-white.svg" width="14" height="14" alt="" />聊一聊
+              <p class="focus">{{ teacherFocus(tutor) }}</p>
+              <p class="intro">{{ tutor.introduction.slice(0, 28) || tutor.experience.slice(0, 28) }}</p>
+              <p class="place">{{ shortArea(tutor.districts) }}　·　{{ modeText(tutor.teachMode) }}</p>
+              <div class="tutor-foot">
+                <span>{{ tutor.availableTimes?.[0] || "可沟通时间待确认" }}</span>
+                <button type="button" @click.stop="goTeacher(tutor.id)">
+                  看资料
+                  <img src="/images/home/figma/arrow-right-sm.svg" width="15" height="15" alt="" />
                 </button>
               </div>
             </div>
           </article>
         </div>
-        <el-empty v-if="!loading && !hotTeachers.length" description="暂无热门老师" />
+        <el-empty v-if="!loading && !displayedTeachers.length" description="暂无老师资料" />
       </div>
     </section>
 
-    <section id="requests" class="requests">
-      <div class="wrap request-layout">
-        <div class="request-intro">
-          <p class="kicker"><i />NEW REQUESTS</p>
-          <h2>全国学员正在<br />寻找这样的老师</h2>
-          <p>老师可按科目、城市和时间筛选真实需求，双方先沟通，再约试听。</p>
-          <img class="scene" src="/images/home/request-scene.png" alt="音乐学习场景" />
-          <button type="button" class="soft-btn" @click="router.push('/students')">
-            <img src="/images/home/briefcase.svg" width="18" height="18" alt="" />
-            我是老师，去找学生
+    <section class="section demands">
+      <div class="wrap demand-layout">
+        <div class="demand-intro">
+          <p class="kicker">FIND YOUR STUDENT / 学员需求</p>
+          <h2>你的擅长，<br />也许正被需要。</h2>
+          <p class="sub">老师也可以主动发现需求。按学段、科目和城市，寻找时间与方向都合适的学生。</p>
+          <button type="button" class="ghost-btn" @click="router.push('/students')">
+            我是老师，浏览需求
+            <img src="/images/home/figma/arrow-up-right-teal.svg" width="17" height="17" alt="" />
           </button>
-        </div>
-        <div class="request-list">
-          <div class="request-status">
-            <strong>最新 {{ demands.length }} 条真实需求</strong>
-            <em><i />实时更新中</em>
+          <div class="info-box">
+            <img src="/images/home/figma/info-amber.svg" width="16" height="16" alt="" />
+            <p>意向预算仅供参考，费用由双方自行沟通确认。</p>
           </div>
+        </div>
+        <div class="demand-list">
           <article
             v-for="item in demands"
             :key="item.id"
-            class="request"
-            @click="router.push(`/students/${item.id}`)"
+            class="demand"
+            @click="goDemand(item.id)"
           >
-            <div class="req-badge">
-              <b>{{ item.subject }}</b>
-              <span>{{ item.age ? `${item.age}岁` : TEACH_MODE_MAP[item.teachMode] }}</span>
+            <div :class="['stage-box', { warm: item.stage === '音乐' || (!item.stage && SUBJECTS_BY_STAGE.音乐.includes(item.subject)) }]">
+              <b>{{ item.stage || demandStage(item) }}</b>
+              <span>{{ item.subject }}</span>
             </div>
-            <div class="req-main">
-              <div class="req-title">
-                <strong>{{ item.remark || `${item.subject}家教需求` }}</strong>
-                <em><img src="/images/home/badge-check.svg" width="14" height="14" alt="" />手机已验证</em>
-              </div>
-              <div class="req-meta">
-                <span>
-                  <img src="/images/home/map-pin-muted.svg" width="14" height="14" alt="" />
-                  {{ demandCity(item.district) }}
-                </span>
-                <span>
-                  <img src="/images/home/clock.svg" width="13" height="13" alt="" />
-                  {{ item.schedule || "时间可议" }}
-                </span>
-              </div>
+            <div class="demand-main">
+              <strong>{{ item.remark || `${item.subject}家教需求` }}</strong>
+              <p>{{ demandCity(item.district) }}　/　{{ modeText(item.teachMode) }}　/　{{ item.schedule }}</p>
+              <p>{{ item.remark ? `希望了解：${item.subject}` : "欢迎先沟通学习目标与时间" }}</p>
             </div>
-            <div class="req-budget">
-              <b>{{ item.budget }}元/时</b>
-              <span>{{ relativeAgo(item.createdAt) }}</span>
+            <div class="demand-side">
+              <b>{{ item.budget }} 元 / 小时</b>
+              <button type="button" @click.stop="goDemand(item.id)">
+                查看需求
+                <img src="/images/home/figma/arrow-right-demand.svg" width="14" height="14" alt="" />
+              </button>
             </div>
-            <span class="req-go" aria-hidden="true">
-              <img src="/images/home/arrow-up-right.svg" width="17" height="17" alt="" />
-            </span>
           </article>
-          <el-empty v-if="!loading && !demands.length" description="暂无开放中的学员需求" />
+          <el-empty v-if="!demands.length" description="暂无学员需求" />
         </div>
       </div>
     </section>
 
-    <section class="band">
+    <section class="section process">
       <div class="wrap">
-        <header class="block-head">
+        <header class="head row">
           <div>
-            <p class="kicker"><i />HOW IT WORKS</p>
-            <h2>四步，找到合拍的音乐老师</h2>
-            <p>不绕弯、不代收费，把选择权交给老师与学员家庭。</p>
+            <p class="kicker">HOW IT WORKS / 认识同号</p>
+            <h2>把选择留给你，把沟通变简单</h2>
+            <p class="sub">不代替家庭与老师做决定，让每一次联系都从清楚的信息开始。</p>
           </div>
+          <button type="button" class="more" @click="router.push('/legal/agreement')">
+            了解平台说明
+            <img src="/images/home/figma/arrow-right-teal.svg" width="18" height="18" alt="" />
+          </button>
         </header>
-        <div class="steps">
-          <article v-for="step in steps" :key="step.no" class="step">
+        <div class="step-grid">
+          <article v-for="item in steps" :key="item.no" class="step">
             <div class="step-top">
-              <span class="step-icon" :style="{ background: step.wash }">
-                <img :src="`/images/home/${step.icon}.svg`" width="22" height="22" alt="" />
-              </span>
-              <span class="step-no">{{ step.no }}</span>
+              <span class="icon"><img :src="`/images/home/figma/${item.icon}`" width="23" height="23" alt="" /></span>
+              <em>{{ item.no }}</em>
             </div>
-            <h3>{{ step.title }}</h3>
-            <p>{{ step.desc }}</p>
-            <span v-if="step.arrow" class="step-arrow">
-              <img src="/images/home/arrow-right-white.svg" width="14" height="14" alt="" />
-            </span>
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.desc }}</p>
           </article>
         </div>
       </div>
     </section>
 
-    <section class="explore">
+    <section class="section cities">
       <div class="wrap">
-        <header class="block-head">
-          <div>
-            <p class="kicker"><i />EXPLORE</p>
-            <h2>按科目、按城市，都能更快找到</h2>
-            <p>从钢琴到声乐、吉他与民乐，优先发现离你近、时间合适的老师。</p>
-          </div>
+        <header class="head">
+          <p class="kicker">NEAR & FAR / 全国发现</p>
+          <h2>在你的城市，也在屏幕另一端</h2>
+          <p class="sub">先确定城市，再选学段与科目；线上学习可跨城联系，线下授课请进一步确认区域与距离。</p>
         </header>
-        <div class="explore-grid">
-          <div class="subject-panel">
-            <div class="panel-head">
-              <strong>热门科目</strong>
-              <button type="button" @click="goTeachers()">查看全部科目 →</button>
+        <div class="city-layout">
+          <div class="city-panel">
+            <div class="city-head">
+              <div>
+                <img src="/images/home/figma/map-pin-city.svg" width="20" height="20" alt="" />
+                <strong>从一座城市开始</strong>
+              </div>
+              <button type="button" @click="goTeachers()">全部城市 A–Z　↗</button>
             </div>
-            <div class="subject-grid">
+            <div class="city-grid">
               <button
-                v-for="item in subjectsGrid"
-                :key="item.name"
+                v-for="item in cities"
+                :key="item.label"
                 type="button"
-                class="subject-card"
-                @click="goTeachers(item.name)"
+                :class="{ on: activeCity === item.label }"
+                @click="goCity(item.label, item.path)"
               >
-                <span class="subject-icon" :style="{ background: item.wash }">
-                  <img :src="`/images/home/${item.icon}.svg`" width="21" height="21" alt="" />
-                </span>
-                <span>
-                  <b>{{ item.name }}</b>
-                  <small>{{ item.count }}</small>
-                </span>
-                <img src="/images/home/chevron-right.svg" width="15" height="15" alt="" />
+                {{ item.label }}
               </button>
+              <button type="button" @click="goTeachers()">更多城市</button>
             </div>
-          </div>
-          <div class="area-panel">
-            <div class="area-copy">
-              <strong>热门授课城市</strong>
-              <p>全国覆盖，优先匹配同城老师</p>
-            </div>
-            <div class="area-grid">
-              <button
-                v-for="area in areas"
-                :key="area.name"
-                type="button"
-                :class="['area', { active: area.active }]"
-                @click="goCity(area.path)"
-              >
-                <span>
-                  <img
-                    :src="area.active ? '/images/home/map-pin-white.svg' : '/images/home/map-pin-soft.svg'"
-                    width="14"
-                    height="14"
-                    alt=""
-                  />
-                  {{ area.name }}
-                </span>
-                <small>{{ area.count }}</small>
-              </button>
-            </div>
-            <p class="locate">
-              <img src="/images/home/navigation.svg" width="16" height="16" alt="" />
-              可在顶部切换定位城市，筛选附近老师
+            <p class="city-note">
+              发现路径示例：北京 → 初中 → 化学 → 线上 / 线下<br />
+              城市入口仅用于信息筛选，不代表当地师资数量或服务承诺。
             </p>
           </div>
+          <div class="mode-cards">
+            <button type="button" class="mode-card sky" @click="goTeachers({ teachMode: 'offline' })">
+              <img src="/images/home/figma/map-pinned.svg" width="34" height="34" alt="" />
+              <div>
+                <strong>线下见面，关注距离</strong>
+                <p>按城市与区域寻找，沟通上门或约定地点。<br />首次见面建议监护人陪同。</p>
+              </div>
+              <img src="/images/home/figma/arrow-up-right-light.svg" width="19" height="19" alt="" />
+            </button>
+            <button type="button" class="mode-card warm" @click="goTeachers({ teachMode: 'online' })">
+              <img src="/images/home/figma/monitor.svg" width="34" height="34" alt="" />
+              <div>
+                <strong>线上相遇，不限同城</strong>
+                <p>跨城市了解老师，提前确认设备、<br />上课工具与双方可用时间。</p>
+              </div>
+              <img src="/images/home/figma/arrow-up-right-light.svg" width="19" height="19" alt="" />
+            </button>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="band safety">
-      <div class="wrap safety-grid">
-        <div class="safety-photo">
-          <img src="/images/home/safety.png" alt="学员与老师沟通" />
-          <div class="safety-float">
-            <span><img src="/images/home/shield-check-green.svg" width="22" height="22" alt="" /></span>
-            <div>
-              <b>让沟通更放心</b>
-              <small>审核 · 隐私 · 举报处理</small>
-            </div>
+    <section class="section trust">
+      <div class="wrap trust-layout">
+        <div class="trust-photo">
+          <img src="/images/home/figma/cta-bg.png" alt="沟通场景示意" />
+          <div class="photo-chip">
+            <img src="/images/home/figma/messages-trust.svg" width="22" height="22" alt="" />
+            <b>先聊清楚，再做决定</b>
           </div>
         </div>
-        <div>
-          <p class="kicker"><i />SAFETY FIRST</p>
-          <h2>信息更透明，选择更安心</h2>
-          <p class="sub">我们尽力做好信息审核与风险提示，但试听、授课和交易仍需双方独立判断。</p>
-          <div class="safe-grid">
-            <article v-for="item in safeguards" :key="item.title">
-              <span><img :src="`/images/home/${item.icon}.svg`" width="19" height="19" alt="" /></span>
+        <div class="trust-copy">
+          <p class="kicker">CLEAR & CAREFUL / 安心沟通</p>
+          <h2>信息撮合，边界说在前面</h2>
+          <p class="sub">
+            同号家教仅提供信息展示与联系撮合，不提供授课服务；不收取课时费，不提供支付结算，也不承诺教学结果。
+          </p>
+          <div class="safeguard-grid">
+            <article v-for="item in safeguards" :key="item.title" class="safeguard">
+              <img :src="`/images/home/figma/${item.icon}`" width="21" height="21" alt="" />
               <div>
-                <b>{{ item.title }}</b>
-                <p>{{ item.desc }}</p>
+                <strong>{{ item.title }}</strong>
+                <p>
+                  <template v-for="(line, i) in item.lines" :key="i">{{ line }}<br v-if="i < item.lines.length - 1" /></template>
+                </p>
               </div>
             </article>
           </div>
-          <div class="safe-actions">
-            <button type="button" class="soft-btn" @click="router.push('/legal/agreement')">
-              <img src="/images/home/shield.svg" width="18" height="18" alt="" />
-              了解平台安全规则
-            </button>
-            <span>有疑问？工作日 9:00–18:00 在线响应</span>
+          <div class="trust-links">
+            <button type="button" @click="router.push('/legal/agreement')">阅读安全指南 ↗</button>
+            <button type="button" class="muted" @click="router.push('/legal/agreement')">发现可疑信息？反馈与举报 →</button>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="stories">
+    <section class="section cta">
       <div class="wrap">
-        <header class="block-head">
-          <div>
-            <p class="kicker"><i />REAL STORIES</p>
-            <h2>来自老师与学员的真实声音</h2>
-            <p>一次合拍的音乐课，往往从透明的信息和轻松的沟通开始。</p>
-          </div>
+        <header class="cta-head">
+          <h2>下一次合拍，从这里开始</h2>
+          <p>无论寻找学习陪伴，还是分享自己的所长，都值得认真介绍。</p>
         </header>
-        <el-empty v-if="!loading && !stories.length" description="暂无学员评价" />
-        <div v-else class="story-grid">
-          <article v-for="story in stories" :key="story.name + story.quote" :class="{ featured: story.featured }">
-            <div class="stars">
-              <img
-                v-for="n in 5"
-                :key="n"
-                :src="story.featured ? '/images/home/star-white.svg' : '/images/home/star.svg'"
-                width="14"
-                height="14"
-                alt=""
-              />
-              <img
-                class="quote"
-                :src="story.featured ? '/images/home/quote-white.svg' : '/images/home/quote.svg'"
-                width="26"
-                height="26"
-                alt=""
-              />
+        <div class="cta-grid">
+          <article class="cta-card family">
+            <img src="/images/home/figma/sprout-cta.svg" width="42" height="42" alt="" />
+            <div>
+              <span>FOR FAMILIES / 我是家长</span>
+              <h3>说说孩子需要怎样的老师</h3>
+              <p>写清学段、科目与时间，让沟通更有方向。</p>
+              <button type="button" @click="openPublish">
+                发布学习需求
+                <img src="/images/home/figma/arrow-up-right-teal.svg" width="17" height="17" alt="" />
+              </button>
             </div>
-            <p>{{ story.quote }}</p>
-            <div class="who">
-              <img :src="story.avatar" alt="" />
-              <div>
-                <b>{{ story.name }}</b>
-                <small>{{ story.role }}</small>
-              </div>
-              <em><img src="/images/home/badge-check.svg" width="14" height="14" alt="" />真实体验</em>
+          </article>
+          <article class="cta-card tutor">
+            <img src="/images/home/figma/presentation.svg" width="42" height="42" alt="" />
+            <div>
+              <span>FOR TUTORS / 我是老师</span>
+              <h3>让你的擅长，被合适的人看见</h3>
+              <p>如实填写教学方向、授课区域与可约时间。</p>
+              <button type="button" @click="openTeacherJoin">
+                完善教师资料
+                <img src="/images/home/figma/arrow-up-right-cta.svg" width="17" height="17" alt="" />
+              </button>
             </div>
           </article>
         </div>
       </div>
     </section>
 
-    <section class="cta band">
-      <div class="wrap">
-        <h2>今天，就从一次坦诚沟通开始</h2>
-        <p>无论你在找音乐老师，还是想利用所长帮助学员，都能免费发布信息。</p>
-        <div class="cta-grid">
-          <article class="parent">
-            <span class="cta-icon"><img src="/images/home/users-white.svg" width="31" height="31" alt="" /></span>
-            <div>
-              <small>I'M A STUDENT</small>
-              <h3>告诉我们，你想学什么乐器</h3>
-              <p>发布需求后，合适的同城或线上老师可以主动联系你。</p>
-              <button type="button" @click="router.push('/demand/publish')">
-                <img src="/images/home/arrow-blue.svg" width="18" height="18" alt="" />
-                免费发布学琴需求
-              </button>
-            </div>
-          </article>
-          <article class="tutor-cta">
-            <span class="cta-icon light"><img src="/images/home/cap-orange.svg" width="31" height="31" alt="" /></span>
-            <div>
-              <small>I'M A TUTOR</small>
-              <h3>让全国学员看见你的专长</h3>
-              <p>完善教学资料，按城市与时间在「找学生」中筛选真实需求。</p>
-              <button type="button" class="orange" @click="router.push('/teacher/join')">
-                <img src="/images/home/arrow-white.svg" width="18" height="18" alt="" />
-                免费入驻成为老师
-              </button>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
+    <StudentDemandDialog v-model="studentDemandVisible" />
+    <TeacherJoinDialog v-model="teacherJoinVisible" />
   </div>
 </template>
 
 <style scoped lang="scss">
 .home {
-  color: #13233b;
-  background: #fff;
+  --teal: #13857d;
+  --ink: #173b3d;
+  --muted: #687e7e;
+  --line: #dce8e3;
+  --mint: #eaf6f1;
+  --soft: #f3f7f4;
+  --warm: #fff0df;
+  --sky: #edf4fa;
+  --page: #fbfcfa;
+  background: var(--page);
+  color: var(--ink);
 }
 
 .wrap {
-  width: 100%;
-  max-width: 1200px;
+  width: min(1248px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 0 16px;
 }
 
 .hero {
-  background: linear-gradient(168deg, #f8fbff 10%, #eaf5ff 57%, #fff2e9 91%);
+  background: var(--mint);
+  padding: 48px 0 36px;
 }
 
-.hero-grid {
+.hero-top {
   display: grid;
-  grid-template-columns: minmax(0, 680px) minmax(280px, 1fr);
-  gap: 64px;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 66px;
   align-items: center;
-  padding: 68px 0 70px;
+  margin-bottom: 30px;
 }
 
-.trust-pill {
-  display: inline-flex;
+.eyebrow {
+  display: flex;
   align-items: center;
-  gap: 7px;
-  height: 34px;
-  padding: 0 13px;
-  border: 1px solid #e6ecf5;
-  border-radius: 999px;
-  background: #fff;
-  color: #33445d;
+  gap: 9px;
+  color: var(--teal);
   font-size: 13px;
-  font-weight: 700;
+
+  .line {
+    width: 26px;
+    height: 2px;
+    background: var(--teal);
+  }
 }
 
 h1 {
-  margin: 24px 0 0;
-  font-size: 58px;
-  line-height: 1.17;
-  font-weight: 900;
-  letter-spacing: -0.02em;
+  margin: 22px 0 0;
+  font-size: clamp(34px, 4.2vw, 54px);
+  line-height: 1.35;
+  font-weight: 800;
 }
 
-.lead {
-  max-width: 620px;
-  margin: 24px 0 0;
-  color: #33445d;
-  font-size: 18px;
+.lead,
+.sub {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.85;
+}
+
+.sub {
+  font-size: 15px;
   line-height: 1.7;
+  max-width: 850px;
 }
 
-.search {
-  margin-top: 24px;
-  padding: 12px;
-  border-radius: 24px;
-  background: #fff;
-  box-shadow: 0 18px 48px rgba(23, 72, 136, 0.14);
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 23px;
+  margin-top: 22px;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #086b65;
+    font-size: 12px;
+  }
 }
 
-.search-row {
+.hero-photo,
+.trust-photo {
+  position: relative;
+  border-radius: 32px;
+  overflow: hidden;
+  height: 360px;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.photo-chip {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
   display: flex;
   align-items: center;
-  min-height: 58px;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(23, 59, 61, 0.1);
+
+  b {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.35;
+    white-space: nowrap;
+  }
 }
 
-.cond {
-  position: relative;
+.search-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow: 0 12px 32px rgba(32, 77, 61, 0.05);
+}
+
+.stage-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.stage-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 48px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--soft);
+  cursor: pointer;
+
+  strong {
+    font-size: 16px;
+    color: var(--ink);
+  }
+
+  em {
+    font-style: normal;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  &.on {
+    background: var(--teal);
+
+    strong {
+      color: #fff;
+    }
+
+    em {
+      color: #d5f1ea;
+    }
+  }
+}
+
+.filters {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: 1;
-  min-width: 0;
-  height: 58px;
-  padding: 0 16px;
+  margin-top: 20px;
+}
+
+.filter {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 154px;
+  padding: 0;
   border: 0;
   background: transparent;
   text-align: left;
   cursor: pointer;
-}
 
-.cond-icon {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: #eaf2ff;
-  flex-shrink: 0;
-}
-
-.cond-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-
-  small {
-    color: #718096;
-    font-size: 11px;
-    font-weight: 700;
+  &.wide {
+    min-width: 180px;
   }
 
-  strong {
-    color: #13233b;
+  small {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  span {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  b {
     font-size: 15px;
-    font-weight: 700;
   }
 }
 
 .split {
   width: 1px;
   height: 34px;
-  background: #e6ecf5;
-}
-
-.search-btn {
-  display: grid;
-  place-items: center;
-  width: 72px;
-  height: 52px;
-  border: 0;
-  border-radius: 16px;
-  background: #2878ff;
-  cursor: pointer;
+  background: var(--line);
   flex-shrink: 0;
 }
 
 .menu {
   position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
   z-index: 5;
-  top: calc(100% + 6px);
-  left: 8px;
   min-width: 160px;
+  max-height: 240px;
+  overflow: auto;
   margin: 0;
-  padding: 6px;
+  padding: 8px;
   list-style: none;
-  border-radius: 14px;
   background: #fff;
-  box-shadow: 0 12px 36px rgba(27, 59, 112, 0.12);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(23, 59, 61, 0.08);
 
   li {
-    padding: 8px 10px;
+    padding: 10px 12px;
     border-radius: 8px;
     font-size: 14px;
-    font-weight: 600;
 
     &:hover {
-      background: #eaf2ff;
-      color: #1658d7;
+      background: var(--mint);
+      color: var(--teal);
     }
   }
 }
 
-.hot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 4px 0;
-  color: #718096;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.chip {
-  height: 34px;
-  padding: 0 14px;
-  border: 1px solid #e6ecf5;
-  border-radius: 999px;
-  background: #fff;
-  color: #33445d;
-  font-size: 13px;
-  cursor: pointer;
-
-  &.solid,
-  &.on {
-    border-color: #2878ff;
-    background: #2878ff;
-    color: #fff;
-  }
-
-  &.warm:not(.on) {
-    background: #fff1e6;
-    color: #d76254;
-  }
-}
-
-.hints {
-  display: flex;
-  gap: 20px;
-  margin-top: 24px;
-  color: #718096;
-  font-size: 12px;
-
-  span {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-}
-
-.hero-photo {
-  position: relative;
-  height: 560px;
-  border-radius: 32px;
-  overflow: hidden;
-  box-shadow: 0 12px 18px rgba(27, 59, 112, 0.08);
-
-  .cover {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-}
-
-.float {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 12px 36px rgba(27, 59, 112, 0.08);
-}
-
-.match {
-  left: 22px;
-  bottom: 22px;
-  width: 226px;
-  padding: 16px;
-  border-radius: 18px;
-}
-
-.match-top,
-.match-body,
-.speed {
-  display: flex;
-  align-items: center;
-}
-
-.match-top {
-  justify-content: space-between;
-  font-size: 13px;
-  font-weight: 800;
-
-  em {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    color: #178765;
-    font-size: 10px;
-    font-style: normal;
-    font-weight: 400;
-
-    i {
-      width: 7px;
-      height: 7px;
-      border-radius: 99px;
-      background: #178765;
-    }
-  }
-}
-
-.match-body {
-  gap: 10px;
-  margin-top: 10px;
-
-  .avatar {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    object-fit: cover;
-  }
-
-  b,
-  small {
-    display: block;
-  }
-
-  b {
-    font-size: 13px;
-  }
-
-  small {
-    margin-top: 2px;
-    color: #718096;
-    font-size: 10px;
-  }
-}
-
-.speed {
-  top: 22px;
-  right: 18px;
-  gap: 8px;
-  padding: 10px 13px;
-  border-radius: 14px;
-
-  b,
-  small {
-    display: block;
-  }
-
-  b {
-    font-size: 13px;
-  }
-
-  small {
-    color: #718096;
-    font-size: 10px;
-  }
-}
-
-.zap {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
-  background: #fff1e6;
-}
-
-.stats-wrap {
-  padding: 40px 0;
-  background: #fff;
-}
-
-.stats {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 24px 28px;
-  border-radius: 24px;
-  background: #112137;
-  color: #fff;
-}
-
-.stats-lead {
-  width: 220px;
-
-  strong {
-    font-size: 20px;
-    font-weight: 800;
-  }
-
-  p {
-    margin: 7px 0 0;
-    color: #b8c8dc;
-    font-size: 12px;
-    line-height: 1.5;
-  }
-}
-
-.stat {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 205px;
-
-  b,
-  small,
-  > div span {
-    display: block;
-  }
-
-  b {
-    font-size: 23px;
-    font-weight: 800;
-  }
-
-  > div span {
-    margin-top: 2px;
-    color: #d9e3f0;
-    font-size: 12px;
-    font-weight: 700;
-  }
-
-  small {
-    margin-top: 2px;
-    color: #8095ad;
-    font-size: 10px;
-  }
-}
-
-.stat-icon {
+.search-btn,
+.ghost-btn,
+.more,
+.cta-card button,
+.trust-links button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  background: #243a57;
-
-  img {
-    display: block;
-    width: 20px;
-    height: 20px;
-  }
+  gap: 10px;
+  height: 46px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.band {
-  padding: 88px 0;
-  background: #f7faff;
+.search-btn {
+  margin-left: auto;
+  background: var(--teal);
+  color: #fff;
 }
 
-.block-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 34px;
+.hint {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
 
-  h2 {
-    margin: 10px 0 0;
-    font-size: 38px;
-    line-height: 1.25;
-    font-weight: 700;
-  }
+.section {
+  padding: 72px 0;
+}
 
-  p:last-child {
-    margin: 10px 0 0;
-    color: #718096;
-    font-size: 16px;
-    line-height: 1.7;
+.head {
+  margin-bottom: 30px;
+
+  &.row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
   }
 }
 
 .kicker {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   margin: 0;
-  color: #2878ff;
-  font-size: 13px;
+  color: var(--teal);
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
+}
 
-  i {
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    background: #ff9d57;
-  }
+h2 {
+  margin: 10px 0 0;
+  font-size: clamp(26px, 3vw, 34px);
+  line-height: 1.35;
+  font-weight: 800;
 }
 
 .more {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border: 0;
+  height: auto;
+  padding: 0;
   background: transparent;
-  color: #2878ff;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
+  color: var(--teal);
 }
 
+.stage-grid,
 .tutor-grid,
-.steps,
-.story-grid {
+.step-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 18px;
 }
 
-.story-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.stage-card {
+  padding: 24px;
+  border-radius: 20px;
+  cursor: pointer;
+  min-height: 264px;
+
+  &.mint {
+    background: var(--mint);
+  }
+
+  &.sky {
+    background: var(--sky);
+  }
+
+  &.warm {
+    background: var(--warm);
+  }
+
+  h3 {
+    margin: 15px 0 0;
+    font-size: 25px;
+  }
+
+  .range {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .subs {
+    margin: 15px 0 0;
+    min-height: 48px;
+    white-space: pre-line;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.8;
+  }
+
+  .desc {
+    margin: 15px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.8;
+  }
+}
+
+.stage-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tutors,
+.trust {
+  background: var(--soft);
+}
+
+.tutor-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+
+  &.on {
+    background: var(--teal);
+    color: #fff;
+  }
 }
 
 .tutor {
-  display: flex;
-  flex-direction: column;
-  min-height: 420px;
-  border-radius: 24px;
-  background: #fff;
   overflow: hidden;
-  box-shadow: 0 12px 36px rgba(27, 59, 112, 0.08);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  cursor: pointer;
 }
 
 .tutor-photo {
   position: relative;
-  height: 184px;
+  height: 188px;
+  background: #dfece7;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    display: block;
   }
-}
 
-.pop {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 10px;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.91);
-  font-size: 10px;
-  font-weight: 700;
+  .badge {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    padding: 5px 10px;
+    background: #fff;
+    border-radius: 999px;
+    color: var(--teal);
+    font-size: 11px;
+    font-weight: 700;
+  }
 }
 
 .tutor-body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 13px;
-  padding: 18px;
+  padding: 20px;
 }
 
-.name-row,
-.meta,
-.price-row,
-.req-title,
-.req-meta {
+.name-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.name-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
 
   strong {
-    font-size: 19px;
-  }
-
-  em {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    height: 26px;
-    padding: 0 9px;
-    border-radius: 999px;
-    background: #ddf8ee;
-    color: #178765;
-    font-size: 11px;
-    font-style: normal;
-    font-weight: 700;
-    white-space: nowrap;
+    font-size: 20px;
   }
 }
 
-.heart,
-.req-go {
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 99px;
-  background: #f7faff;
-  cursor: pointer;
-}
-
-.heart {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-
-  &.on {
-    background: #ffe4ea;
-  }
-}
-
-.cred {
-  margin: 0;
-
-  b,
-  span {
-    display: block;
-  }
-
-  b {
-    color: #2878ff;
-    font-size: 13px;
-  }
-
-  span {
-    margin-top: 3px;
-    color: #718096;
-    font-size: 12px;
-  }
-}
-
-.subject-pill {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  height: 34px;
-  padding: 0 14px;
-  border: 1px solid #e6ecf5;
-  border-radius: 999px;
-  font-size: 13px;
-  color: #33445d;
-}
-
-.meta {
-  color: #718096;
-  font-size: 11px;
-
-  span {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-  }
-}
-
-.price-row {
-  margin-top: auto;
-  padding-top: 5px;
-
-  b {
-    color: #d76254;
-    font-size: 17px;
-  }
-}
-
-.chat {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 13px;
-  border: 0;
-  border-radius: 99px;
-  background: #2878ff;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.requests {
-  padding: 88px 0;
-  background: #fff;
-}
-
-.request-layout {
-  display: grid;
-  grid-template-columns: 355px minmax(0, 1fr);
-  gap: 54px;
-  align-items: start;
-}
-
-.request-intro {
-  h2 {
-    margin: 22px 0 0;
-    font-size: 38px;
-    line-height: 1.25;
-    font-weight: 800;
-  }
-
-  p {
-    margin: 22px 0 0;
-    color: #718096;
-    font-size: 15px;
-    line-height: 1.7;
-  }
-}
-
-.scene {
-  width: 100%;
-  height: 188px;
-  margin-top: 22px;
-  border-radius: 24px;
-  object-fit: cover;
-  display: block;
-}
-
-.soft-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 48px;
-  margin-top: 22px;
-  padding: 0 22px;
-  border: 0;
-  border-radius: 999px;
-  background: #eaf2ff;
-  color: #1658d7;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.request-status {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 4px 12px;
-  color: #33445d;
-  font-size: 13px;
-
-  em {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    color: #178765;
-    font-size: 11px;
-    font-style: normal;
-
-    i {
-      width: 7px;
-      height: 7px;
-      border-radius: 99px;
-      background: #178765;
-    }
-  }
-}
-
-.request {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
-  padding: 18px;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 12px 36px rgba(27, 59, 112, 0.08);
-  cursor: pointer;
-}
-
-.req-badge {
-  display: grid;
-  place-items: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
-  background: #eaf2ff;
-  text-align: center;
-  flex-shrink: 0;
-
-  b {
-    color: #2878ff;
-    font-size: 12px;
-  }
-
-  span {
-    color: #718096;
-    font-size: 10px;
-  }
-}
-
-.req-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.req-title strong {
-  overflow: hidden;
-  font-size: 16px;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.req-title em,
-.who em {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 9px;
-  border-radius: 999px;
-  background: #ddf8ee;
-  color: #178765;
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.req-meta {
-  justify-content: flex-start;
-  gap: 16px;
-  margin-top: 7px;
-  color: #718096;
-  font-size: 11px;
-
-  span {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-  }
-}
-
-.req-budget {
-  width: 130px;
-  text-align: right;
-
-  b {
-    display: block;
-    color: #d76254;
-    font-size: 15px;
-    font-weight: 800;
-  }
-
-  span {
-    color: #718096;
-    font-size: 10px;
-  }
-}
-
-.req-go {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-}
-
-.steps {
-  gap: 18px;
-}
-
-.step {
-  position: relative;
-  min-height: 205px;
-  padding: 22px;
-  border-radius: 24px;
-  background: #fff;
-
-  h3 {
-    margin: 17px 0 0;
-    font-size: 19px;
-  }
-
-  p {
-    margin: 17px 0 0;
-    color: #718096;
-    font-size: 13px;
-    line-height: 1.65;
-  }
-}
-
-.step-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.step-icon {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-}
-
-.step-no {
-  color: #718096;
+.focus {
+  margin: 13px 0 0;
+  color: var(--teal);
   font-size: 13px;
   font-weight: 700;
 }
 
-.step-arrow {
-  position: absolute;
-  top: 50%;
-  right: -14px;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 99px;
-  background: #2878ff;
-  transform: translateY(-50%);
+.intro {
+  margin: 13px 0 0;
+  min-height: 43px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
 }
 
-.explore {
-  padding: 88px 0;
-  background: #fff;
+.place {
+  margin: 13px 0 0;
+  color: var(--muted);
+  font-size: 11px;
 }
 
-.explore-grid {
-  display: grid;
-  grid-template-columns: 736px minmax(0, 1fr);
-  gap: 28px;
-}
-
-.subject-panel,
-.area-panel {
-  border-radius: 24px;
-  padding: 28px;
-}
-
-.subject-panel {
-  background: #f7faff;
-}
-
-.panel-head,
-.area-copy {
+.tutor-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
-
-  strong {
-    font-size: 18px;
-  }
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
 
   button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     border: 0;
     background: transparent;
-    color: #2878ff;
+    color: var(--teal);
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
   }
 }
 
-.subject-grid,
-.area-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 20px;
+.demand-layout,
+.trust-layout,
+.city-layout {
+  display: grid;
+  gap: 54px;
 }
 
-.subject-card {
-  display: flex;
+.demand-layout {
+  grid-template-columns: 330px 1fr;
   align-items: center;
-  gap: 13px;
-  width: calc(33.33% - 8px);
-  height: 92px;
-  padding: 15px;
-  border: 0;
-  border-radius: 16px;
-  background: #fff;
-  text-align: left;
-  cursor: pointer;
+}
 
-  b,
-  small {
-    display: block;
-  }
-
-  b {
+.demand-intro {
+  .sub {
     font-size: 15px;
+    line-height: 1.85;
   }
 
-  small {
-    margin-top: 4px;
-    color: #718096;
-    font-size: 11px;
-  }
-}
-
-.subject-icon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  flex-shrink: 0;
-}
-
-.area-panel {
-  position: relative;
-  overflow: hidden;
-  background: #112137;
-  color: #fff;
-
-  &::after {
-    content: "";
-    position: absolute;
-    right: -70px;
-    bottom: -80px;
-    width: 240px;
-    height: 240px;
-    border-radius: 999px;
-    background: #1e4a7a;
-    opacity: 0.6;
+  h2 {
+    margin-top: 22px;
   }
 }
 
-.area-copy {
-  position: relative;
-  z-index: 1;
-  display: block;
-
-  p {
-    margin: 7px 0 0;
-    color: #9fb1c7;
-    font-size: 12px;
-  }
+.ghost-btn {
+  margin-top: 22px;
+  background: #fff;
+  color: var(--teal);
 }
 
-.area-grid {
-  position: relative;
-  z-index: 1;
-  gap: 10px;
-}
-
-.area {
+.info-box {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: calc(50% - 5px);
-  height: 48px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 13px;
-  background: #203650;
-  color: #fff;
-  cursor: pointer;
-
-  span {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 13px;
-    font-weight: 700;
-  }
-
-  small {
-    color: #8195ab;
-    font-size: 10px;
-  }
-
-  &.active {
-    background: #2878ff;
-
-    small {
-      color: #ddeaff;
-    }
-  }
-}
-
-.locate {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
   gap: 8px;
-  margin: 24px 0 0;
-  color: #b7c5d6;
+  margin-top: 22px;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--warm);
+  color: #b87336;
   font-size: 11px;
-}
-
-.safety-grid {
-  display: grid;
-  grid-template-columns: 456px minmax(0, 1fr);
-  gap: 56px;
-  align-items: center;
-}
-
-.safety-photo {
-  position: relative;
-  height: 474px;
-  border-radius: 32px;
-  overflow: hidden;
-  box-shadow: 0 12px 18px rgba(27, 59, 112, 0.08);
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-}
-
-.safety-float {
-  position: absolute;
-  left: 20px;
-  bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  width: 280px;
-  padding: 15px;
-  border-radius: 17px;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 12px 36px rgba(27, 59, 112, 0.08);
-
-  span {
-    display: grid;
-    place-items: center;
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    background: #ddf8ee;
-  }
-
-  b,
-  small {
-    display: block;
-  }
-
-  small {
-    margin-top: 3px;
-    color: #718096;
-    font-size: 10px;
-  }
-}
-
-.safety h2 {
-  margin: 10px 0 0;
-  font-size: 38px;
-  line-height: 1.25;
-}
-
-.sub {
-  max-width: 650px;
-  margin: 10px 0 0;
-  color: #718096;
-  font-size: 15px;
   line-height: 1.7;
-}
-
-.safe-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 28px;
-
-  article {
-    display: flex;
-    gap: 13px;
-    width: calc(50% - 7px);
-    min-height: 108px;
-    padding: 16px;
-    border-radius: 16px;
-    background: #fff;
-  }
-
-  span {
-    display: grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 13px;
-    background: #eaf2ff;
-    flex-shrink: 0;
-  }
-
-  b {
-    font-size: 14px;
-  }
-
-  p {
-    margin: 5px 0 0;
-    color: #718096;
-    font-size: 11px;
-    line-height: 1.55;
-  }
-}
-
-.safe-actions {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  margin-top: 28px;
-
-  .soft-btn {
-    margin-top: 0;
-  }
-
-  span {
-    color: #718096;
-    font-size: 12px;
-  }
-}
-
-.stories {
-  padding: 88px 0;
-  background: #fff;
-}
-
-.story-grid article {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  min-height: 278px;
-  padding: 24px;
-  border-radius: 24px;
-  background: #fff;
-  box-shadow: 0 12px 36px rgba(27, 59, 112, 0.08);
 
   p {
     margin: 0;
-    color: #33445d;
-    font-size: 15px;
-    line-height: 1.75;
-  }
-
-  &.featured {
-    background: #2878ff;
-
-    p,
-    b {
-      color: #fff;
-    }
-
-    small {
-      color: #c9ddff;
-    }
-
-    em {
-      background: rgba(255, 255, 255, 0.16);
-      color: #fff;
-    }
   }
 }
 
-.stars {
+.demand-list {
   display: flex;
-  align-items: center;
-  gap: 3px;
-
-  .quote {
-    margin-left: auto;
-  }
-}
-
-.who {
-  display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 12px;
-  margin-top: auto;
+}
 
-  img {
-    width: 44px;
-    height: 44px;
-    border-radius: 99px;
-    object-fit: cover;
-  }
+.demand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 19px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
 
-  b,
-  small {
-    display: block;
+.stage-box {
+  display: grid;
+  place-content: center;
+  width: 54px;
+  height: 62px;
+  border-radius: 10px;
+  background: var(--mint);
+  text-align: center;
+
+  &.warm {
+    background: var(--warm);
   }
 
   b {
-    font-size: 13px;
+    color: #086b65;
+    font-size: 15px;
   }
 
-  small {
-    margin-top: 3px;
-    color: #718096;
-    font-size: 10px;
-  }
-
-  em {
-    margin-left: auto;
-    height: 22px;
+  span {
+    color: var(--muted);
     font-size: 9px;
   }
 }
 
-.cta {
-  text-align: center;
+.demand-main {
+  flex: 1;
+  min-width: 0;
 
-  h2 {
-    margin: 0;
-    font-size: 34px;
+  strong {
+    font-size: 15px;
   }
 
-  > .wrap > p {
+  p {
+    margin: 7px 0 0;
+    color: var(--muted);
+    font-size: 11px;
+  }
+}
+
+.demand-side {
+  width: 151px;
+  text-align: right;
+
+  b {
+    display: block;
+    color: #b87336;
+    font-size: 12px;
+  }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 10px;
+    border: 0;
+    background: transparent;
+    color: var(--teal);
+    font-size: 11px;
+    cursor: pointer;
+  }
+}
+
+.process {
+  background: var(--mint);
+}
+
+.step-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .icon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  em {
+    color: #6e9d8e;
+    font-size: 30px;
+    font-style: normal;
+    font-weight: 500;
+  }
+}
+
+.step {
+  h3 {
+    margin: 16px 0 0;
+    font-size: 20px;
+  }
+
+  p {
+    margin: 16px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.9;
+  }
+}
+
+.city-layout {
+  grid-template-columns: 700px 1fr;
+  gap: 24px;
+}
+
+.city-panel {
+  padding: 28px;
+  border-radius: 20px;
+  background: #153e3d;
+  color: #fff;
+}
+
+.city-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  div {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  strong {
+    font-size: 19px;
+  }
+
+  button {
+    border: 0;
+    background: transparent;
+    color: #c2d8d2;
+    font-size: 12px;
+    cursor: pointer;
+  }
+}
+
+.city-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-top: 24px;
+
+  button {
+    height: 40px;
+    border: 0;
+    border-radius: 8px;
+    background: #28524f;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+
+    &.on {
+      background: #d2ece3;
+      color: var(--ink);
+    }
+  }
+}
+
+.city-note {
+  margin: 24px 0 0;
+  color: #c2d8d2;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.mode-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mode-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+  padding: 24px;
+  border: 0;
+  border-radius: 20px;
+  text-align: left;
+  cursor: pointer;
+
+  &.sky {
+    background: var(--sky);
+  }
+
+  &.warm {
+    background: var(--warm);
+  }
+
+  strong {
+    display: block;
+    font-size: 19px;
+  }
+
+  p {
     margin: 8px 0 0;
-    color: #718096;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.85;
+  }
+
+  div {
+    flex: 1;
+  }
+}
+
+.trust-layout {
+  grid-template-columns: 420px 1fr;
+  gap: 64px;
+  align-items: center;
+}
+
+.trust-photo {
+  height: 428px;
+}
+
+.safeguard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 23px;
+}
+
+.safeguard {
+  display: flex;
+  gap: 11px;
+
+  strong {
+    font-size: 14px;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.8;
+  }
+}
+
+.trust-links {
+  display: flex;
+  gap: 24px;
+  margin-top: 8px;
+
+  button {
+    height: auto;
+    padding: 0;
+    background: transparent;
+    color: var(--teal);
+    font-size: 13px;
+
+    &.muted {
+      color: var(--muted);
+      font-weight: 400;
+      font-size: 12px;
+    }
+  }
+}
+
+.cta {
+  padding-top: 64px;
+  padding-bottom: 64px;
+}
+
+.cta-head {
+  text-align: center;
+  margin-bottom: 28px;
+
+  h2 {
+    font-size: 30px;
+  }
+
+  p {
+    margin: 10px 0 0;
+    color: var(--muted);
     font-size: 14px;
   }
 }
@@ -2047,244 +1572,142 @@ h1 {
 .cta-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-top: 26px;
-  text-align: left;
-}
-
-.parent,
-.tutor-cta {
-  position: relative;
-  display: flex;
-  align-items: center;
   gap: 24px;
-  min-height: 205px;
+}
+
+.cta-card {
+  display: flex;
+  gap: 24px;
+  align-items: center;
   padding: 30px;
-  overflow: hidden;
-  border-radius: 32px;
-}
+  border-radius: 20px;
 
-.parent {
-  background: #2878ff;
-  color: #fff;
-
-  &::after {
-    content: "";
-    position: absolute;
-    top: -72px;
-    right: -60px;
-    width: 210px;
-    height: 210px;
-    border-radius: 999px;
-    background: #5a9aff;
-    opacity: 0.55;
-  }
-
-  small {
-    color: #cfe0ff;
-  }
-
-  p {
-    color: #dde9ff;
-  }
-
-  button {
-    background: #fff;
-    color: #1658d7;
-  }
-}
-
-.tutor-cta {
-  background: #fff1e6;
-
-  &::after {
-    content: "";
-    position: absolute;
-    right: -54px;
-    bottom: -85px;
-    width: 220px;
-    height: 220px;
-    border-radius: 999px;
-    background: #ffd3b5;
-    opacity: 0.8;
-  }
-
-  small {
-    color: #d76254;
-  }
-
-  h3 {
-    color: #13233b;
-  }
-
-  p {
-    color: #33445d;
-  }
-}
-
-.cta-icon {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 68px;
-  height: 68px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.14);
-  flex-shrink: 0;
-
-  &.light {
-    background: #fff;
-  }
-}
-
-.parent > div,
-.tutor-cta > div {
-  position: relative;
-  z-index: 1;
-
-  small {
+  span {
     font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
   }
 
   h3 {
-    margin: 10px 0 0;
-    font-size: 25px;
+    margin: 12px 0 0;
+    font-size: 22px;
   }
 
   p {
-    margin: 10px 0 0;
+    margin: 12px 0 0;
     font-size: 12px;
-    line-height: 1.55;
   }
 
   button {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    height: 48px;
-    margin-top: 10px;
-    padding: 0 22px;
-    border: 1px solid #e6ecf5;
-    border-radius: 999px;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
+    margin-top: 12px;
+  }
 
-    &.orange {
-      border-color: transparent;
-      background: #ff9d57;
+  &.family {
+    background: var(--teal);
+    color: #fff;
+
+    span,
+    p {
+      color: #d7ede6;
+    }
+
+    button {
+      background: #fff;
+      color: var(--teal);
+    }
+  }
+
+  &.tutor {
+    background: var(--warm);
+
+    span {
+      color: #b87336;
+    }
+
+    p {
+      color: var(--muted);
+    }
+
+    button {
+      background: var(--teal);
       color: #fff;
     }
   }
 }
 
 @media (max-width: 1100px) {
-  h1 {
-    font-size: 42px;
-  }
-
-  .hero-grid,
-  .request-layout,
-  .explore-grid,
-  .safety-grid,
-  .cta-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-photo,
-  .safety-photo {
-    height: 420px;
-  }
-
+  .hero-top,
+  .demand-layout,
+  .city-layout,
+  .trust-layout,
+  .cta-grid,
+  .stage-grid,
   .tutor-grid,
-  .steps {
+  .step-grid {
     grid-template-columns: 1fr 1fr;
   }
 
-  .stats {
+  .filters {
     flex-wrap: wrap;
   }
 
-  .stat,
-  .stats-lead {
-    width: calc(50% - 12px);
+  .search-btn {
+    width: 100%;
+    margin-left: 0;
   }
 
-  .subject-card,
-  .area {
-    width: calc(50% - 6px);
+  .city-layout {
+    grid-template-columns: 1fr;
   }
 
-  .step-arrow {
-    display: none;
+  .city-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
 @media (max-width: 720px) {
-  .hero-grid {
-    padding: 32px 0 48px;
+  .wrap {
+    width: calc(100% - 32px);
   }
 
-  h1,
-  .block-head h2,
-  .request-intro h2,
-  .safety h2 {
-    font-size: 30px;
+  .hero-top,
+  .demand-layout,
+  .trust-layout,
+  .cta-grid,
+  .stage-grid,
+  .tutor-grid,
+  .step-grid,
+  .stage-tabs,
+  .safeguard-grid {
+    grid-template-columns: 1fr;
   }
 
-  .search-row,
-  .request,
-  .name-line {
-    flex-wrap: wrap;
+  .head.row,
+  .tutor-tools,
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter,
+  .filter.wide {
+    width: 100%;
   }
 
   .split {
     display: none;
   }
 
-  .search-btn {
+  .demand {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .demand-side {
     width: 100%;
-    margin-top: 8px;
-  }
-
-  .cond {
-    width: 100%;
-    flex: none;
-  }
-
-  .tutor-grid,
-  .steps,
-  .story-grid,
-  .safe-grid article,
-  .subject-card,
-  .area,
-  .stat,
-  .stats-lead {
-    width: 100%;
-    grid-template-columns: 1fr;
-  }
-
-  .tutor-grid,
-  .steps,
-  .story-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .req-budget {
-    width: auto;
     text-align: left;
   }
 
-  .band,
-  .requests,
-  .explore,
-  .stories {
-    padding: 56px 0;
+  .city-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 </style>
-
