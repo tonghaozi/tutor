@@ -359,6 +359,7 @@ function onPrimarySubmit() {
 
         <div class="panel-head">
           <h2>{{ titleText }}</h2>
+          <p class="panel-desc" style="color: red;">暂时未接通短信服务商，短信密码为<span style="font-weight: bold;font-size: 20px;">123456</span></p>
           <p class="panel-desc">
             {{ descText }}
             <button
