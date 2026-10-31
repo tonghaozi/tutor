@@ -34,9 +34,7 @@ const safetyLinks = [
     <div class="page-container footer-main">
       <div class="brand">
         <div class="brand-row">
-          <div class="brand-mark">
-            <img src="/images/home/figma/book-open-footer.svg" width="25" height="25" alt="" />
-          </div>
+          <img class="brand-logo" src="/logo/logo.png" :alt="APP_NAME" />
           <span class="brand-text">
             <strong>{{ APP_NAME }}</strong>
             <em>{{ APP_SLOGAN }}</em>
@@ -63,7 +61,15 @@ const safetyLinks = [
       </div>
     </div>
     <div class="page-container copyright">
-      <p>© 2026 {{ APP_NAME }}</p>
+      <div class="copy-left">
+        <p>© 2026 {{ APP_NAME }}</p>
+        <a
+          class="icp"
+          href="https://beian.miit.gov.cn/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >皖ICP备2026038156号-1</a>
+      </div>
       <p>平台仅提供信息撮合，不构成教学效果承诺；请自行核实对方身份与资料。</p>
     </div>
   </footer>
@@ -93,13 +99,13 @@ const safetyLinks = [
   gap: 11px;
 }
 
-.brand-mark {
-  display: grid;
-  place-items: center;
+.brand-logo {
   width: 42px;
   height: 42px;
+  object-fit: contain;
+  display: block;
   border-radius: 14px;
-  background: #fff;
+  flex-shrink: 0;
 }
 
 .brand-text {
@@ -151,6 +157,7 @@ const safetyLinks = [
 .copyright {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 24px;
   padding-top: 22px;
   padding-bottom: 24px;
@@ -160,6 +167,22 @@ const safetyLinks = [
 
   p {
     margin: 0;
+  }
+}
+
+.copy-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.icp {
+  color: #c2d8d2;
+  text-decoration: none;
+
+  &:hover {
+    color: #fff;
   }
 }
 
