@@ -21,7 +21,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'https://tonghao520.top',
+        target: 'https://test.tonghao520.top',
         changeOrigin: true,
         secure: true,
       },

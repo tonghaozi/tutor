@@ -28,11 +28,14 @@ import { track } from "@/utils/track";
 type AuthMode = "code" | "password";
 type PasswordMode = "login" | "register";
 
+/** 暂时关闭验证码登录；恢复时改为 true 即可 */
+const SMS_LOGIN_ENABLED = false;
+
 const router = useRouter();
 const route = useRoute();
 const loading = ref(false);
 const sending = ref(false);
-const authMode = ref<AuthMode>("code");
+const authMode = ref<AuthMode>(SMS_LOGIN_ENABLED ? "code" : "password");
 const passwordMode = ref<PasswordMode>("login");
 const codeStep = ref<"phone" | "code">("phone");
 const phoneRegistered = ref(true);
@@ -330,17 +333,21 @@ function onPrimarySubmit() {
         <p class="eyebrow">{{ APP_NAME }}</p>
         <h1>欢迎回来</h1>
         <p class="aside-desc">
-          支持手机验证码登录，也可以用账号密码登录。学员找老师、老师接咨询，选好身份后继续。
+          {{
+            SMS_LOGIN_ENABLED
+              ? "支持手机验证码登录，也可以用账号密码登录。学员找老师、老师接咨询，选好身份后继续。"
+              : "当前请使用账号密码登录或注册。学员找老师、老师接咨询，选好身份后继续。"
+          }}
         </p>
         <ul class="aside-points">
-          <li>验证码登录：新号需填性别年龄</li>
-          <li>账号密码：适合常用登录</li>
+          <li v-if="SMS_LOGIN_ENABLED">验证码登录：新号需填性别年龄</li>
+          <li>账号密码：注册后可直接登录</li>
           <li>平台只做信息撮合，不收取课时费</li>
         </ul>
       </aside>
 
       <section class="login-panel">
-        <div class="mode-tabs" role="tablist">
+        <div v-if="SMS_LOGIN_ENABLED" class="mode-tabs" role="tablist">
           <button
             type="button"
             role="tab"
@@ -361,7 +368,6 @@ function onPrimarySubmit() {
 
         <div class="panel-head">
           <h2>{{ titleText }}</h2>
-          <p class="panel-desc" style="color: red;">暂时未接通短信服务商，短信密码为<span style="font-weight: bold;font-size: 20px;">123456</span></p>
           <p class="panel-desc">
             {{ descText }}
             <button
@@ -624,8 +630,12 @@ function onPrimarySubmit() {
         </div>
 
         <p class="footer-tip">
-          验证码 5
-          分钟内有效。仅用验证码登录的账号，需要先注册并设置密码后，才能用账号密码登录。
+          <template v-if="SMS_LOGIN_ENABLED">
+            验证码 5 分钟内有效。仅用验证码登录的账号，需要先注册并设置密码后，才能用账号密码登录。
+          </template>
+          <template v-else>
+            验证码登录暂未开放，请使用账号密码登录；新用户可直接注册。
+          </template>
         </p>
       </section>
     </div>

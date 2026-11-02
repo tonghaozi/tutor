@@ -1,7 +1,8 @@
 ---
 name: sync-backend
 description: >-
-  修改同号前端时同步修改 Desktop/web-app 后端，并经宝塔把 jar 发布到服务器 8080。
+  修改同号前端时同步修改 Desktop/web-app 后端，并经宝塔发布。
+  生产 www.tonghao520.top:8080；测试 test.tonghao520.top:8081。
   在改页面、接口、类型、文案数据、鉴权、列表内容，或用户提到后端、宝塔、部署、web-app、接口时使用。
 ---
 
@@ -13,6 +14,16 @@ description: >-
 
 ## 对照
 
+| 角色 | 生产 | 测试 |
+| --- | --- | --- |
+| 域名 | `https://www.tonghao520.top` | `https://test.tonghao520.top` |
+| 静态站 | `/www/wwwroot/tonghao520.top` | `/www/wwwroot/test.tonghao520.top` |
+| 接口 | Nginx `/api` → `127.0.0.1:8080` | Nginx `/api` → `127.0.0.1:8081` |
+| jar | `/www/javaapi/web-app-0.0.1-SNAPSHOT.jar` | 同 jar，独立进程 |
+| 本地配置 | `/www/javaapi/application-local.properties` | `/www/javaapi-test/application-local.properties` |
+| 数据库 | `tutor` | `tutor_test` |
+| 头像目录 | `/www/wwwroot/tonghao520.top/uploads` | `/www/wwwroot/test.tonghao520.top/uploads` |
+
 | 角色 | 位置 |
 | --- | --- |
 | 前端 | 本仓库 |
@@ -20,22 +31,17 @@ description: >-
 | 后端 | `C:/Users/Administrator/Desktop/web-app`（Spring Boot 2.6，Java 8） |
 | 路由 | `src/main/java/com/example/tutor/TutorController.java` |
 | 业务、表、种子 | `TutorService.java`、`src/main/resources/seed.json` |
-| 线上接口 | `https://tonghao520.top/api`（Nginx 反代到本机 8080） |
-| 服务器 jar | `/www/javaapi/web-app-0.0.1-SNAPSHOT.jar` |
-| 服务器本地配置 | `/www/javaapi/application-local.properties`（含数据库密码，禁止提交、禁止写入回复） |
-| 静态站 | `/www/wwwroot/tonghao520.top` |
-| 头像目录 | `/www/wwwroot/tonghao520.top/uploads` |
 | 面板入口 | 见同目录 `credentials.local` |
 
-前端生产构建用同源 `/api`；开发环境 `VITE_API_BASE_URL` 指向 `https://tonghao520.top/api`。列表和详情以该接口为准，不要只改 `src/mock` 就结束。
+前端生产构建用同源 `/api`（www / test 各自反代）；本地开发 `VITE_API_BASE_URL` 指向 `https://test.tonghao520.top/api`。列表和详情以接口为准，不要只改 `src/mock` 就结束。
 
 ## 步骤
 
 1. 判断本次改动是否改变请求、响应字段、校验、鉴权、库表，或接口返回的文案和数据。
 2. 会变：同时改 `web-app`。路径、字段名、状态值与前端类型保持一致。已有数据需要新字段或新种子时，在 `TutorService` 里做兼容，不要假设空库。
 3. 用 Java 8 打包（见下方命令）。覆盖上传前先备份服务器上的旧 jar。
-4. 用 `credentials.local` 登录宝塔，上传到 `/www/javaapi/web-app-0.0.1-SNAPSHOT.jar`，重启监听 8080 的 Java 项目。
-5. 请求 `https://tonghao520.top/api/health`（或本机 `http://127.0.0.1:8080/api/health`）和本次改动对应的接口，确认返回与前端一致。
+4. 用 `credentials.local` 登录宝塔，上传 jar 到 `/www/javaapi/`，分别重启生产 8080 与测试 8081。
+5. 验证 `https://www.tonghao520.top/api/health` 与 `https://test.tonghao520.top/api/health`。
 6. 只有样式、间距、图标变化，且请求和响应不变：不要为了凑改动去改 Java。在结果里写明后端契约未变、未发布新 jar。
 
 登录要点：先打开 `credentials.local` 里的安全入口拿 cookie，再用登录页下发的 RSA 公钥加密用户名和密码（密码按宝塔要求先做 MD5）后提交。含密码的临时脚本在任务结束前删除。
