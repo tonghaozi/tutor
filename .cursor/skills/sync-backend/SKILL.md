@@ -25,7 +25,7 @@ description: >-
 | 服务器本地配置 | `/www/javaapi/application-local.properties`（含数据库密码，禁止提交、禁止写入回复） |
 | 静态站 | `/www/wwwroot/tonghao520.top` |
 | 头像目录 | `/www/wwwroot/tonghao520.top/uploads` |
-| 面板入口 | 见同目录 `credentials.local`（域名端口，勿用 IP 直连） |
+| 面板入口 | 见同目录 `credentials.local` |
 
 前端生产构建用同源 `/api`；开发环境 `VITE_API_BASE_URL` 指向 `https://tonghao520.top/api`。列表和详情以该接口为准，不要只改 `src/mock` 就结束。
 
