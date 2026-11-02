@@ -28,7 +28,7 @@ const form = reactive<DemandFilter>({
   subject: '',
   stage: '',
   district: appStore.regionPath,
-  teachMode: '',
+  teachMode: 'both',
   budgetMin: null,
   budgetMax: null,
   ...props.modelValue,
@@ -59,7 +59,7 @@ function reset() {
   form.keyword = ''
   form.subject = ''
   form.stage = ''
-  form.teachMode = ''
+  form.teachMode = 'both'
   form.budgetMin = null
   form.budgetMax = null
   appStore.clearDistrict()
@@ -91,7 +91,7 @@ function reset() {
         </el-select>
       </el-form-item>
       <el-form-item label="方式">
-        <el-select v-model="form.teachMode" clearable placeholder="全部" style="width: 110px">
+        <el-select v-model="form.teachMode" placeholder="授课方式" style="width: 140px">
           <el-option
             v-for="m in TEACH_MODE_OPTIONS"
             :key="m.value"

@@ -51,7 +51,7 @@ const focusTags = computed(() => {
 
 const placeText = computed(() => {
   const paths = props.teacher.districts || []
-  if (!paths.length) return `全国可约 · ${TEACH_MODE_MAP[props.teacher.teachMode] || '线上 / 线下'}`
+  if (!paths.length) return `全国可约 · ${TEACH_MODE_MAP[props.teacher.teachMode] || '线上或线下均可'}`
   const short = paths
     .map((path) => {
       const parts = splitRegionPath(path)
@@ -69,7 +69,7 @@ const placeText = computed(() => {
       ? '仅线上'
       : props.teacher.teachMode === 'offline'
         ? '线下'
-        : '线上 / 线下'
+        : '线上或线下均可'
   return `${short} · ${mode}`
 })
 

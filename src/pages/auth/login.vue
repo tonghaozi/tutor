@@ -23,6 +23,7 @@ import {
   markSmsSent,
   SMS_COOLDOWN_SECONDS,
 } from "@/utils/smsLimit";
+import { track } from "@/utils/track";
 
 type AuthMode = "code" | "password";
 type PasswordMode = "login" | "register";
@@ -173,6 +174,7 @@ function ensureAgreed() {
 }
 
 async function afterLogin(user: { name: string; role: UserRole }) {
+  track("login_success", { role: user.role, adminEntry: isAdminEntry });
   ElMessage.success(`欢迎，${user.name}`);
   const redirect =
     (route.query.redirect as string) ||

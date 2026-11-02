@@ -7,6 +7,7 @@ import { STAGES, SUBJECTS, TEACH_MODE_OPTIONS } from '@/constants'
 import RegionCascader from '@/components/common/RegionCascader.vue'
 import { useUserStore } from '@/store'
 import type { RegionPath, Stage, Subject, TeachMode } from '@/types'
+import { track } from '@/utils/track'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
@@ -95,6 +96,7 @@ async function submit() {
         .filter(Boolean),
       userId: userStore.userInfo?.id,
     })
+    track('teacher_join', { source: 'dialog', teachMode: form.teachMode })
     ElMessage.success('资料已提交，审核通过后才会对外展示')
     close()
   } catch (e: unknown) {

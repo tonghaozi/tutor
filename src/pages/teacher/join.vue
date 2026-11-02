@@ -7,6 +7,7 @@ import RegionCascader from '@/components/common/RegionCascader.vue'
 import { useUserStore } from '@/store'
 import type { RegionPath, Stage, Subject, TeachMode } from '@/types'
 import { formatRegions, splitRegionPath } from '@/utils/region'
+import { track } from '@/utils/track'
 
 const DRAFT_KEY = 'tonghao_teacher_join_draft'
 const TIME_CHIPS = ['周二晚上', '周四晚上', '周六上午', '周日上午', '工作日晚上', '其他时段']
@@ -189,6 +190,7 @@ async function submit() {
       userId: userStore.userInfo?.id,
     })
     localStorage.removeItem(DRAFT_KEY)
+    track('teacher_join', { source: 'page', teachMode: teachMode.value })
     ElMessage.success('入驻资料已提交，状态为待审核，通过后才会对外展示')
     form.introduction = ''
     form.focus = ''

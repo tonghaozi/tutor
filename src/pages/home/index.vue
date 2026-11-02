@@ -20,6 +20,7 @@ import { useAppStore, useUserStore } from "@/store";
 import type { Demand, Stage, Subject, TeachMode, Teacher } from "@/types";
 import { resolveAvatar } from "@/utils";
 import { formatRegion, formatRegions, splitRegionPath } from "@/utils/region";
+import { track } from "@/utils/track";
 
 const router = useRouter();
 const appStore = useAppStore();
@@ -134,7 +135,7 @@ const safeguards = [
 const stage = ref<Stage>("小学");
 const grade = ref("四年级");
 const subject = ref<Subject>("数学");
-const teachMode = ref<TeachMode | "">("");
+const teachMode = ref<TeachMode>("both");
 const cityLabel = ref(appStore.cityLabel || "全国");
 const cityPath = ref(appStore.cityPath || "");
 const openMenu = ref<"city" | "grade" | "subject" | "mode" | "">("");
@@ -149,10 +150,7 @@ const activeCity = ref("北京");
 
 const subjectOptions = computed(() => SUBJECTS_BY_STAGE[stage.value] || []);
 const gradeOptions = computed(() => GRADES_BY_STAGE[stage.value] || []);
-const modeLabel = computed(() => {
-  if (!teachMode.value) return "线上 / 线下不限";
-  return TEACH_MODE_MAP[teachMode.value];
-});
+const modeLabel = computed(() => TEACH_MODE_MAP[teachMode.value]);
 
 const searchHint = computed(() => {
   const subs = subjectOptions.value.join("、");
@@ -213,7 +211,7 @@ function teacherFocus(teacher: Teacher) {
 }
 
 function modeText(mode: TeachMode) {
-  return TEACH_MODE_MAP[mode] || "线上 / 线下";
+  return TEACH_MODE_MAP[mode] || "线上或线下均可";
 }
 
 function toggleMenu(key: typeof openMenu.value) {
@@ -236,12 +234,19 @@ function chooseSubject(value: Subject) {
   openMenu.value = "";
 }
 
-function chooseMode(value: TeachMode | "") {
+function chooseMode(value: TeachMode) {
   teachMode.value = value;
   openMenu.value = "";
 }
 
 function searchGo() {
+  track("search_teachers", {
+    source: "home",
+    stage: stage.value,
+    subject: subject.value,
+    teachMode: teachMode.value,
+    district: cityPath.value || "全国",
+  });
   router.push({
     path: "/teachers",
     query: {
@@ -416,7 +421,6 @@ onMounted(load);
                 <img src="/images/home/figma/chevron-down-muted.svg" width="15" height="15" alt="" />
               </span>
               <ul v-if="openMenu === 'mode'" class="menu">
-                <li @click="chooseMode('')">线上 / 线下不限</li>
                 <li v-for="item in TEACH_MODE_OPTIONS" :key="item.value" @click="chooseMode(item.value)">
                   {{ TEACH_MODE_MAP[item.value] }}
                 </li>

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/store'
+import { trackPageView } from '@/utils/track'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -142,6 +143,11 @@ router.beforeEach(async (to) => {
   }
   document.title = `${(to.meta.title as string) || '首页'} - 同号家教`
   return true
+})
+
+router.afterEach((to) => {
+  if (to.meta.requiresAdmin) return
+  trackPageView(to.fullPath, (to.meta.title as string) || '')
 })
 
 export default router

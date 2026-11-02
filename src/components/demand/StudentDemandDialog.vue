@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { apiPublishDemand } from '@/api'
+import { track } from '@/utils/track'
 import { GRADES_BY_STAGE, STAGES, SUBJECTS_BY_STAGE, TEACH_MODE_OPTIONS } from '@/constants'
 import RegionCascader from '@/components/common/RegionCascader.vue'
 import { useUserStore } from '@/store'
@@ -102,6 +103,7 @@ async function submit() {
       phone: form.phone,
       userId: userStore.userInfo?.id,
     })
+    track('publish_demand', { source: 'dialog', stage: form.stage, subject: form.subject })
     ElMessage.success('求学需求已发布')
     close()
   } catch (e: unknown) {

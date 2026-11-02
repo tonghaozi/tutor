@@ -199,5 +199,23 @@ export async function apiGetDashboard() {
     pendingCount: number
     demandCount: number
     commentCount: number
+    pageViewToday?: number
+    pageView7d?: number
+    copyPhone7d?: number
+    searchTeachers7d?: number
+    loginSuccess7d?: number
+    publishDemand7d?: number
+    teacherJoin7d?: number
+    topEvents7d?: Array<{ name: string; count: number }>
   }>('/dashboard')
+}
+
+export async function apiTrackEvents(
+  events: Array<{ event: string; path?: string; props?: Record<string, unknown>; ts?: number }>,
+  deviceId: string,
+) {
+  return request<{ ok: boolean; accepted: number }>('/events', {
+    method: 'POST',
+    data: { deviceId, events },
+  })
 }

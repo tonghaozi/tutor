@@ -4,6 +4,10 @@ export const APP_NAME = '同号家教'
 
 export const APP_SLOGAN = '全国综合家教平台'
 
+/** 费用与试用说明（页脚、协议等处复用） */
+export const APP_FEE_NOTICE =
+  '当前为免费试用期：浏览、发布与基础联系功能免费开放。后续可能对置顶曝光、认证标识等增值服务收费；基础信息撮合将保留免费额度。平台始终不收取课时费。'
+
 export const STAGES: Stage[] = ['小学', '初中', '高中', '音乐']
 
 export const SUBJECTS_BY_STAGE: Record<Stage, Subject[]> = {
@@ -49,15 +53,15 @@ export const SUBJECTS: Subject[] = [
 ]
 
 export const TEACH_MODE_OPTIONS: { label: string; value: TeachMode }[] = [
-  { label: '上门', value: 'offline' },
+  { label: '线下', value: 'offline' },
   { label: '线上', value: 'online' },
-  { label: '均可', value: 'both' },
+  { label: '线上或线下均可', value: 'both' },
 ]
 
 export const TEACH_MODE_MAP: Record<TeachMode, string> = {
   offline: '线下',
   online: '线上',
-  both: '线上 / 线下',
+  both: '线上或线下均可',
 }
 
 export const AUDIT_STATUS_MAP = {

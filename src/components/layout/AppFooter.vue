@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { APP_NAME, APP_SLOGAN } from '@/constants'
+import { APP_FEE_NOTICE, APP_NAME, APP_SLOGAN } from '@/constants'
 
 const findLinks = [
   { label: '小学家教', to: '/teachers?stage=小学' },
@@ -70,7 +70,10 @@ const safetyLinks = [
           rel="noopener noreferrer"
         >皖ICP备2026038156号-1</a>
       </div>
-      <p>平台仅提供信息撮合，不构成教学效果承诺；请自行核实对方身份与资料。</p>
+      <div class="copy-right">
+        <p>平台仅提供信息撮合，不构成教学效果承诺；请自行核实对方身份与资料。</p>
+        <p class="fee-notice">{{ APP_FEE_NOTICE }}</p>
+      </div>
     </div>
   </footer>
 </template>
@@ -186,6 +189,21 @@ const safetyLinks = [
   }
 }
 
+.copy-right {
+  max-width: 640px;
+  text-align: right;
+
+  p {
+    margin: 0;
+  }
+
+  .fee-notice {
+    margin-top: 8px;
+    color: #9bb8b1;
+    line-height: 1.7;
+  }
+}
+
 @media (max-width: 900px) {
   .footer-main,
   .copyright {
@@ -195,6 +213,11 @@ const safetyLinks = [
   .brand,
   .col {
     width: auto;
+  }
+
+  .copy-right {
+    text-align: left;
+    max-width: none;
   }
 }
 </style>

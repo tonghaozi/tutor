@@ -4,7 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { apiGetDemandDetail } from '@/api'
 import { TEACH_MODE_MAP } from '@/constants'
-import { formatDate } from '@/utils'
+import { copyText, formatDate } from '@/utils'
+import { track } from '@/utils/track'
 import { formatRegion } from '@/utils/region'
 import type { Demand } from '@/types'
 
@@ -69,12 +70,19 @@ async function load() {
   }
 }
 
-function copyPhone() {
-  if (!demand.value?.phone) return
-  navigator.clipboard?.writeText(demand.value.phone).then(
-    () => ElMessage.success('手机号已复制'),
-    () => ElMessage.info(demand.value!.phone),
-  )
+async function copyPhone() {
+  const phone = demand.value?.phone?.trim()
+  if (!phone) {
+    ElMessage.warning('暂无手机号可复制')
+    return
+  }
+  const ok = await copyText(phone)
+  track('copy_phone', { ok, demandId: demand.value?.id || id.value, source: 'demand_detail' })
+  if (ok) {
+    ElMessage.success('手机号已复制')
+    return
+  }
+  ElMessage.error(`复制失败，请手动复制：${phone}`)
 }
 
 onMounted(load)

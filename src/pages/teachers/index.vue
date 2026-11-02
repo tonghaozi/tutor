@@ -17,6 +17,7 @@ import {
 import { useAppStore, useUserStore } from '@/store'
 import type { Stage, Subject, TeachMode, Teacher, TeacherFilter as FilterType } from '@/types'
 import { splitRegionPath } from '@/utils/region'
+import { track } from '@/utils/track'
 
 const route = useRoute()
 const router = useRouter()
@@ -83,7 +84,7 @@ const filter = reactive<FilterType>({
   subject: '',
   stage: '',
   district: '',
-  teachMode: '',
+  teachMode: 'both',
   priceMin: null,
   priceMax: null,
 })
@@ -105,10 +106,7 @@ const focusOptions = computed(() =>
   filter.stage ? FOCUS_BY_STAGE[filter.stage as Stage] || FOCUS_BY_STAGE.小学 : FOCUS_BY_STAGE.小学,
 )
 
-const modeLabel = computed(() => {
-  if (!filter.teachMode) return '线上 / 线下不限'
-  return TEACH_MODE_MAP[filter.teachMode as TeachMode]
-})
+const modeLabel = computed(() => TEACH_MODE_MAP[(filter.teachMode as TeachMode) || 'both'])
 
 const cityDisplay = computed(() => (cityLabel.value === '全国' || !cityLabel.value ? '全国城市' : cityLabel.value))
 
@@ -207,7 +205,7 @@ function chooseSubject(value: Subject | '') {
   openMenu.value = ''
 }
 
-function chooseMode(value: TeachMode | '') {
+function chooseMode(value: TeachMode) {
   filter.teachMode = value
   openMenu.value = ''
 }
@@ -247,6 +245,13 @@ async function load(payload: FilterType = filter) {
 }
 
 function search() {
+  track('search_teachers', {
+    source: 'teachers',
+    stage: filter.stage || '',
+    subject: filter.subject || '',
+    teachMode: filter.teachMode || '',
+    district: filter.district || '全国',
+  })
   syncRouteQuery()
   load()
 }
@@ -255,7 +260,7 @@ function resetFilters() {
   filter.keyword = ''
   filter.subject = ''
   filter.stage = ''
-  filter.teachMode = ''
+  filter.teachMode = 'both'
   filter.priceMin = null
   filter.priceMax = null
   filter.district = ''
@@ -286,7 +291,7 @@ function initFromRoute() {
   filter.keyword = (route.query.keyword as string) || ''
   filter.subject = (route.query.subject as Subject | '') || ''
   filter.stage = (route.query.stage as Stage | '') || ''
-  filter.teachMode = (route.query.teachMode as TeachMode | '') || ''
+  filter.teachMode = (route.query.teachMode as TeachMode | '') || 'both'
   const queryDistrict = (route.query.district as string) || ''
   if (queryDistrict) {
     filter.district = queryDistrict
@@ -411,7 +416,6 @@ onMounted(() => {
                 <img src="/images/home/figma/chevron-down-muted.svg" width="13" height="13" alt="" />
               </span>
               <ul v-if="openMenu === 'mode'" class="menu">
-                <li @click="chooseMode('')">线上 / 线下不限</li>
                 <li
                   v-for="item in TEACH_MODE_OPTIONS"
                   :key="item.value"

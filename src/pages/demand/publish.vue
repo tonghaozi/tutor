@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { apiPublishDemand } from '@/api'
+import { track } from '@/utils/track'
 import {
   GRADES_BY_STAGE,
   STAGES,
@@ -179,6 +180,7 @@ async function submit() {
       userId: userStore.userInfo?.id,
     })
     localStorage.removeItem(DRAFT_KEY)
+    track('publish_demand', { source: 'page', stage: form.stage, subject: form.subject })
     ElMessage.success('需求已发布')
     form.statusText = ''
     form.goalText = ''
