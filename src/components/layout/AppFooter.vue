@@ -34,7 +34,7 @@ const safetyLinks = [
     <div class="page-container footer-main">
       <div class="brand">
         <div class="brand-row">
-          <img class="brand-logo" src="/logo/logo.png" :alt="APP_NAME" />
+          <img class="brand-logo" src="/logo/logo.svg" :alt="APP_NAME" />
           <span class="brand-text">
             <strong>{{ APP_NAME }}</strong>
             <em>{{ APP_SLOGAN }}</em>

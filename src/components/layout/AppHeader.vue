@@ -104,7 +104,7 @@ async function logout() {
   <header class="app-header" :class="{ 'on-home': route.path === '/' }">
     <div class="page-container header-inner">
       <div class="brand" @click="go('/')">
-        <img class="brand-logo" src="/logo/logo.png" :alt="APP_NAME" />
+        <img class="brand-logo" src="/logo/logo.svg" :alt="APP_NAME" />
         <span class="brand-text">
           <span class="brand-name">{{ APP_NAME }}</span>
           <span class="brand-en">全国综合家教平台</span>
@@ -226,6 +226,8 @@ async function logout() {
   height: 40px;
   object-fit: contain;
   display: block;
+  border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .brand-text {

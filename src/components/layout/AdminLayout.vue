@@ -34,7 +34,7 @@ async function logout() {
   <div class="admin-layout" :class="{ collapsed: appStore.sidebarCollapsed }">
     <aside class="sidebar">
       <div class="side-brand">
-        <img class="brand-logo" src="/logo/logo.png" :alt="APP_NAME" />
+        <img class="brand-logo" src="/logo/logo.svg" :alt="APP_NAME" />
         <div class="brand-text">
           <span>{{ APP_NAME }}</span>
           <small>管理后台</small>
