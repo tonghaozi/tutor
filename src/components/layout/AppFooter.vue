@@ -69,6 +69,15 @@ const safetyLinks = [
           target="_blank"
           rel="noopener noreferrer"
         >皖ICP备2026038156号-1</a>
+        <a
+          class="icp police-beian"
+          href="https://beian.mps.gov.cn/#/query/webSearch?code=34010402705218"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <img src="/logo/beianIcon.png" alt="" width="16" height="16" />
+          皖公网安备34010402705218号
+        </a>
       </div>
       <div class="copy-right">
         <p>平台仅提供信息撮合，不构成教学效果承诺；请自行核实对方身份与资料。</p>
@@ -186,6 +195,19 @@ const safetyLinks = [
 
   &:hover {
     color: #fff;
+  }
+}
+
+.police-beian {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  img {
+    display: block;
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
   }
 }
 
